@@ -85,9 +85,12 @@
 
 /* Main Content Container */
 .page-container {
-    max-width: 1200px;
+    width: 100%;
+    /* Use 95% to leave a small gap on the sides, or 100% for full edge-to-edge */
+    max-width: 96%; 
     margin: 0 auto;
     padding: 40px 20px;
+    box-sizing: border-box;
 }
 
 .page-title {

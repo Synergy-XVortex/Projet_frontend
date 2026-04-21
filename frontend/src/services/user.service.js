@@ -1,28 +1,30 @@
 import api from './api';
 
-/**
- * Service handling user-related operations.
- */
-class UserService {
-    
-    /**
-     * Retrieves the list of all users (Admin only).
-     * @returns {Promise} API response
-     */
-    async getAllUsers() {
-        const response = await api.get('/users');
-        return response.data;
-    }
+const UserService = {
+    getAllUsers: () => {
+        return api.get('/users'); // Retour à /users
+    },
 
-    /**
-     * Activates a user account (Admin only).
-     * @param {string} email - The email of the user to activate.
-     * @returns {Promise} API response
-     */
-    async activateUser(email) {
-        const response = await api.patch(`/users/${email}/activate`);
-        return response.data;
-    }
-}
+    updateUser: (email, userData) => {
+        if (!email) return Promise.reject("Missing User Email");
+        return api.put(`/users/${email}`, userData); // Retour à /users
+    },
 
-export default new UserService();
+    activateUser: (email) => {
+        if (!email) return Promise.reject("Missing User Email");
+        return api.put(`/users/${email}/activate`); 
+    },
+
+    toggleUserStatus: (user) => {
+        if (!user || !user.email) return Promise.reject("Invalid user object");
+        
+        if (!user.active) {
+            return UserService.activateUser(user.email);
+        } else {
+            const updatedUser = { ...user, active: false };
+            return UserService.updateUser(user.email, updatedUser);
+        }
+    }
+};
+
+export default UserService;
