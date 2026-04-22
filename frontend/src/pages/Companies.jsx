@@ -1,90 +1,125 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import CompanyService from '../services/company.service';
 import '../styles/layout.css';
 
 const Companies = () => {
     const [companies, setCompanies] = useState([]);
-    const [showForm, setShowForm] = useState(false);
-    const [formData, setFormData] = useState({
-        siret: '',
-        corporateName: '',
-        address: '',
-        contactEmail: '',
-        contactPhone: ''
-    });
+    const [isLoading, setIsLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
-        loadCompanies();
+        fetchCompanies();
     }, []);
 
-    const loadCompanies = async () => {
+    const fetchCompanies = async () => {
+        setIsLoading(true);
         try {
-            const data = await CompanyService.getAllCompanies();
-            setCompanies(data);
+            const response = await CompanyService.getAllCompanies();
+            setCompanies(response.data);
         } catch (error) {
-            console.error("Error loading companies", error);
+            console.error("Failed to load companies:", error);
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        try {
-            await CompanyService.createCompany(formData);
-            setShowForm(false);
-            setFormData({ siret: '', corporateName: '', address: '', contactEmail: '', contactPhone: '' });
-            loadCompanies();
-        } catch (error) {
-            alert("Error creating company. Check if SIRET already exists.");
-        }
-    };
+    // Filtrage dynamique
+    const filteredCompanies = useMemo(() => {
+        if (!searchTerm) return companies;
+        const lowerTerm = searchTerm.toLowerCase();
+        return companies.filter(c => 
+            c.name.toLowerCase().includes(lowerTerm) || 
+            c.sector.toLowerCase().includes(lowerTerm) ||
+            c.location.toLowerCase().includes(lowerTerm)
+        );
+    }, [companies, searchTerm]);
 
     return (
         <div className="app-layout">
             <div className="page-container">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', flexWrap: 'wrap', gap: '15px' }}>
                     <div>
-                        <h1 className="page-title">Companies Directory</h1>
-                        <p className="page-subtitle">Manage partner companies and their contact information.</p>
+                        <h1 className="page-title" style={{ marginBottom: '5px' }}>Companies Directory</h1>
+                        <p className="page-subtitle" style={{ margin: 0 }}>Browse partner companies and find your next internship.</p>
                     </div>
-                    <button 
-                        className="auth-button" 
-                        style={{ width: 'auto', padding: '10px 20px' }}
-                        onClick={() => setShowForm(!showForm)}
-                    >
-                        {showForm ? 'Cancel' : '+ Add Company'}
-                    </button>
+
+                    {/* Barre de recherche (réutilise vos classes CSS existantes) */}
+                    <div className="search-container">
+                        <span className="search-icon">🔍</span>
+                        <input 
+                            type="text" 
+                            className="search-input" 
+                            placeholder="Search name, sector, city..." 
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
                 </div>
 
-                {showForm && (
-                    <div style={{ background: '#fff', padding: '25px', borderRadius: '12px', marginBottom: '30px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
-                        <h3>New Company Details</h3>
-                        <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '20px' }}>
-                            <input type="text" placeholder="SIRET (14 digits)" className="auth-input" style={{ color: '#000' }} 
-                                onChange={e => setFormData({...formData, siret: e.target.value})} required />
-                            <input type="text" placeholder="Corporate Name" className="auth-input" style={{ color: '#000' }}
-                                onChange={e => setFormData({...formData, corporateName: e.target.value})} required />
-                            <input type="email" placeholder="Contact Email" className="auth-input" style={{ color: '#000' }}
-                                onChange={e => setFormData({...formData, contactEmail: e.target.value})} required />
-                            <input type="text" placeholder="Phone Number" className="auth-input" style={{ color: '#000' }}
-                                onChange={e => setFormData({...formData, contactPhone: e.target.value})} required />
-                            <input type="text" placeholder="Full Address" className="auth-input" style={{ color: '#000', gridColumn: 'span 2' }}
-                                onChange={e => setFormData({...formData, address: e.target.value})} required />
-                            <button type="submit" className="auth-button" style={{ gridColumn: 'span 2' }}>Register Company</button>
-                        </form>
+                {isLoading ? (
+                    <div className="glass-card">
+                        <p style={{ textAlign: 'center' }}>Loading companies directory...</p>
+                    </div>
+                ) : (
+                    <div style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
+                        gap: '20px' 
+                    }}>
+                        {filteredCompanies.length === 0 ? (
+                            <div className="glass-card" style={{ gridColumn: '1 / -1', textAlign: 'center' }}>
+                                <p>No companies found matching your search.</p>
+                            </div>
+                        ) : (
+                            filteredCompanies.map(company => (
+                                <div key={company.id} className="glass-card" style={{ 
+                                    padding: '20px', 
+                                    display: 'flex', 
+                                    flexDirection: 'column', 
+                                    gap: '15px',
+                                    transition: 'transform 0.2s',
+                                    cursor: 'pointer'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
+                                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                                >
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                        <div style={{ 
+                                            width: '50px', height: '50px', 
+                                            background: 'rgba(255,255,255,0.1)', 
+                                            borderRadius: '10px',
+                                            display: 'flex', justifyContent: 'center', alignItems: 'center',
+                                            fontSize: '24px'
+                                        }}>
+                                            {company.logo}
+                                        </div>
+                                        <div>
+                                            <h3 style={{ margin: '0 0 5px 0', fontSize: '18px' }}>{company.name}</h3>
+                                            <span style={{ 
+                                                fontSize: '11px', 
+                                                padding: '3px 8px', 
+                                                background: 'rgba(59, 130, 246, 0.2)', 
+                                                color: '#93c5fd', 
+                                                borderRadius: '10px',
+                                                border: '1px solid rgba(59, 130, 246, 0.3)'
+                                            }}>
+                                                {company.sector}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'rgba(255,255,255,0.6)', fontSize: '13px' }}>
+                                        <span>📍</span> {company.location}
+                                    </div>
+
+                                    <button className="auth-button" style={{ marginTop: 'auto', padding: '10px' }}>
+                                        View Details
+                                    </button>
+                                </div>
+                            ))
+                        )}
                     </div>
                 )}
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
-                    {companies.map(company => (
-                        <div key={company.siret} style={{ background: '#fff', padding: '20px', borderRadius: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', borderLeft: '4px solid #3b82f6' }}>
-                            <h3 style={{ marginBottom: '5px' }}>{company.corporateName}</h3>
-                            <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '15px' }}>SIRET: {company.siret}</p>
-                            <p style={{ fontSize: '14px', marginBottom: '5px' }}>📍 {company.address}</p>
-                            <p style={{ fontSize: '14px', marginBottom: '5px' }}>✉️ {company.contactEmail}</p>
-                            <p style={{ fontSize: '14px' }}>📞 {company.contactPhone}</p>
-                        </div>
-                    ))}
-                </div>
             </div>
         </div>
     );

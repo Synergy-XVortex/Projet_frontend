@@ -1,27 +1,26 @@
-import api from './api';
+import axios from 'axios';
 
-/**
- * Service handling company-related API calls.
- */
-class CompanyService {
-    /**
-     * Retrieves all companies.
-     * @returns {Promise} List of companies.
-     */
-    async getAllCompanies() {
-        const response = await api.get('/companies');
-        return response.data;
+// Utilisation de l'instance axios avec le token si nécessaire
+const API_URL = "http://localhost:8080/api/companies";
+
+const CompanyService = {
+    // Récupère les vraies entreprises depuis le Backend
+    getAllCompanies: async () => {
+        const token = localStorage.getItem('jwt_token');
+        return axios.get(API_URL, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+    },
+
+    // Compte dynamiquement pour le Dashboard
+    countCompanies: async () => {
+        const token = localStorage.getItem('jwt_token');
+        const response = await axios.get(API_URL, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        // On compte les entreprises retournées par la DB
+        return response.data.length;
     }
+};
 
-    /**
-     * Registers a new company in the system.
-     * @param {Object} companyData - { siret, corporateName, address, contactEmail, contactPhone }
-     * @returns {Promise} Created company.
-     */
-    async createCompany(companyData) {
-        const response = await api.post('/companies', companyData);
-        return response.data;
-    }
-}
-
-export default new CompanyService();
+export default CompanyService;

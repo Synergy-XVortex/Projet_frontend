@@ -129,8 +129,7 @@ const Register = () => {
                             >
                                 <option value="STUDENT">Student</option>
                                 <option value="TEACHER">Teacher</option>
-                                {/* Corrected GUEST to SUPERVISOR to match backend Role.java */}
-                                <option value="SUPERVISOR">Supervisor</option>
+                                <option value="GUEST">Guest</option>
                                 <option value="ADMINISTRATOR">Admin</option>
                             </select>
                         </div>

@@ -9,7 +9,7 @@ import Companies from './pages/Companies';
 
 /**
  * MainLayout component that includes the Navbar for authenticated users.
- * The <Outlet /> component renders the specific child route (Dashboard, etc.).
+ * The <Outlet /> component renders the specific child route.
  */
 const MainLayout = () => {
     return (
@@ -48,17 +48,13 @@ function App() {
             {/* General access for all logged-in roles */}
             <Route path="/dashboard" element={<Dashboard />} />
             
-            {/* Placeholder routes for future implementation */}
+            {/* Vraie route vers la page Entreprises */}
+            <Route path="/companies" element={<Companies />} />
+            
+            {/* Placeholder route for future implementation */}
             <Route path="/internships" element={
                 <div style={{ textAlign: 'center', marginTop: '100px' }}>
                     <h2>Internships List</h2>
-                    <p>Coming soon...</p>
-                </div>
-            } />
-            
-            <Route path="/companies" element={
-                <div style={{ textAlign: 'center', marginTop: '100px' }}>
-                    <h2>Companies Directory</h2>
                     <p>Coming soon...</p>
                 </div>
             } />
@@ -79,7 +75,6 @@ function App() {
 
         {/* Catch-all route for non-existent URLs (404) */}
         <Route path="*" element={<Navigate to="/dashboard" />} />
-        <Route path="/companies" element={<Companies />} />
       </Routes>
     </Router>
   );
