@@ -146,7 +146,8 @@ const UserManagement = () => {
         }
     };
 
-    const buttonStyle = { width: '100px', height: '36px', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '0', fontSize: '13px' };
+    // CHANGEMENT ICI : minWidth à la place de width fixe pour que le texte respire sur mobile
+    const buttonStyle = { minWidth: '80px', padding: '0 10px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '0', fontSize: '13px' };
 
     return (
         <div className="app-layout">
@@ -162,7 +163,6 @@ const UserManagement = () => {
                 {/* Dynamic Controls: Tabs & Search */}
                 <div className="controls-container">
                     <div className="tabs-container">
-                        {/* CHANGEMENT ICI : GUEST à la place de SUPERVISOR */}
                         {['ALL', 'STUDENT', 'TEACHER', 'GUEST', 'ADMINISTRATOR'].map(role => (
                             <button 
                                 key={role}
@@ -201,7 +201,6 @@ const UserManagement = () => {
                             </div>
                             <div className="auth-input-group" style={{ marginBottom: 0 }}>
                                 <label className="auth-label">Role</label>
-                                {/* CHANGEMENT ICI : GUEST à la place de SUPERVISOR */}
                                 <select name="role" className="auth-input" value={formData.role} onChange={(e) => setFormData({...formData, role: e.target.value})}>
                                     <option value="STUDENT">STUDENT</option>
                                     <option value="TEACHER">TEACHER</option>
@@ -227,11 +226,10 @@ const UserManagement = () => {
                         <p style={{ padding: '30px', textAlign: 'center' }}>Loading user data...</p>
                     ) : (
                         <div style={{ overflowX: 'auto' }}>
-                            {/* FIXED TABLE LAYOUT: Prevents column resizing when content changes */}
-                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', tableLayout: 'fixed' }}>
+                            {/* CHANGEMENT ICI : Ajout de minWidth: '1000px' pour forcer le scroll horizontal sur mobile */}
+                            <table style={{ width: '100%', minWidth: '1000px', borderCollapse: 'collapse', textAlign: 'left', tableLayout: 'fixed' }}>
                                 <thead style={{ background: 'rgba(0,0,0,0.3)', color: '#fff', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                     <tr>
-                                        {/* Fixed widths applied to TH elements */}
                                         <th style={{ width: '20%', padding: '15px' }} className="sortable-header" onClick={() => requestSort('firstName')}>
                                             Identity {getSortIcon('firstName')}
                                         </th>
@@ -262,7 +260,6 @@ const UserManagement = () => {
                                     ) : (
                                         processedUsers.map(user => (
                                             <tr key={user.email} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background 0.2s' }}>
-                                                {/* Added textOverflow logic to handle long emails gracefully within fixed columns */}
                                                 <td style={{ padding: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                     {user.firstName || 'N/A'} {user.lastName || ''}
                                                 </td>

@@ -94,6 +94,7 @@ const Dashboard = () => {
     const renderAdminDashboard = () => (
         <>
             <div className="stats-grid">
+                {/* 1. Carte Total Users (Contour bleu via la classe 'highlight') */}
                 <div className="stats-card highlight">
                     <span className="stats-icon">👥</span>
                     <div>
@@ -103,17 +104,20 @@ const Dashboard = () => {
                         </span>
                     </div>
                 </div>
-                <div className="stats-card">
+                
+                {/* 2. Carte Registered Companies (Nouveau contour émeraude/vert) */}
+                <div className="stats-card" style={{ borderColor: '#10b981' }}>
                     <span className="stats-icon">🏢</span>
                     <div>
                         <span className="stats-label">Registered Companies</span>
-                        {/* Affichage dynamique du nombre d'entreprises */}
                         <span className="stats-value">
                             {isStatsLoading ? "..." : stats.registeredCompanies}
                         </span> 
                     </div>
                 </div>
-                <div className="stats-card" style={{ borderColor: stats.pendingActivations > 0 ? '#fca5a5' : 'rgba(255, 255, 255, 0.1)' }}>
+                
+                {/* 3. Carte Pending Activations (Nouveau contour blanc visible si 0, rouge clair si > 0) */}
+                <div className="stats-card" style={{ borderColor: stats.pendingActivations > 0 ? '#fca5a5' : 'rgba(255, 255, 255, 0.4)' }}>
                     <span className="stats-icon">⚠️</span>
                     <div>
                         <span className="stats-label">Pending Activations</span>

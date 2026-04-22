@@ -1,10 +1,8 @@
 import axios from 'axios';
 
-// Utilisation de l'instance axios avec le token si nécessaire
-const API_URL = "http://localhost:8080/api/companies";
+const API_URL = "http://localhost:8080/companies"; // Ou /api/companies selon votre Swagger
 
 const CompanyService = {
-    // Récupère les vraies entreprises depuis le Backend
     getAllCompanies: async () => {
         const token = localStorage.getItem('jwt_token');
         return axios.get(API_URL, {
@@ -12,14 +10,20 @@ const CompanyService = {
         });
     },
 
-    // Compte dynamiquement pour le Dashboard
     countCompanies: async () => {
         const token = localStorage.getItem('jwt_token');
         const response = await axios.get(API_URL, {
             headers: { Authorization: `Bearer ${token}` }
         });
-        // On compte les entreprises retournées par la DB
         return response.data.length;
+    },
+
+    // NOUVELLE MÉTHODE : Pour modifier une entreprise
+    updateCompany: async (siret, companyData) => {
+        const token = localStorage.getItem('jwt_token');
+        return axios.put(`${API_URL}/${siret}`, companyData, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
     }
 };
 
