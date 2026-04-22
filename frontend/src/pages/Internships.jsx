@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import InternshipService from '../services/internship.service';
 import UserService from '../services/user.service';
 import CompanyService from '../services/company.service';
-import { jwtDecode } from 'jwt-decode'; // NOUVEAU : Pour lire le rôle
+import { jwtDecode } from 'jwt-decode';
 import '../styles/layout.css';
 
 const Internships = () => {
@@ -19,7 +19,9 @@ const Internships = () => {
     const [details, setDetails] = useState({ student: null, teacher: null, company: null });
     const [isDetailsLoading, setIsDetailsLoading] = useState(false);
 
-    // --- LECTURE DU RÔLE UTILISATEUR ---
+    const [deletedInternship, setDeletedInternship] = useState(null);
+    const deleteTimeoutRef = useRef(null);
+
     const token = localStorage.getItem('jwt_token');
     let userRole = '';
     let userEmail = '';
@@ -38,7 +40,6 @@ const Internships = () => {
     const fetchInternships = async () => {
         setIsLoading(true);
         try {
-            // Si c'est un étudiant, on demande au Backend de ne renvoyer que SES stages
             const params = userRole === 'STUDENT' ? { studentEmail: userEmail } : {};
             const response = await InternshipService.getAllInternships(params);
             setInternships(response.data || []);
@@ -98,6 +99,35 @@ const Internships = () => {
         } catch (err) { alert("Error updating internship status."); }
     };
 
+    const handleDeleteClick = (internship) => {
+        setInternships(prev => prev.filter(i => i.id !== internship.id));
+        setDeletedInternship(internship);
+
+        if (deleteTimeoutRef.current) clearTimeout(deleteTimeoutRef.current);
+
+        deleteTimeoutRef.current = setTimeout(async () => {
+            try {
+                await InternshipService.deleteInternship(internship.id);
+            } catch (err) {
+                console.error(err);
+                alert("Erreur lors de la suppression. Le stage est peut-être lié à d'autres données.");
+                fetchInternships(); 
+            }
+            setDeletedInternship(null);
+        }, 5000);
+    };
+
+    const handleUndoDelete = () => {
+        if (deleteTimeoutRef.current) {
+            clearTimeout(deleteTimeoutRef.current);
+            deleteTimeoutRef.current = null;
+        }
+        if (deletedInternship) {
+            setInternships(prev => [...prev, deletedInternship]);
+            setDeletedInternship(null);
+        }
+    };
+
     const getStatusBadgeStyle = (status) => {
         const styles = {
             VALIDATED: { color: '#86efac', bg: 'rgba(34, 197, 94, 0.2)', border: 'rgba(34, 197, 94, 0.3)' },
@@ -108,15 +138,12 @@ const Internships = () => {
         return styles[status] || styles.ONGOING;
     };
 
-    const buttonStyle = { minWidth: '80px', padding: '0 10px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '0', fontSize: '13px' };
-
     return (
         <div className="app-layout">
             <div className="page-container">
                 <h1 className="page-title">{userRole === 'STUDENT' ? 'My Internship' : 'Internship Management'}</h1>
                 <p className="page-subtitle">{userRole === 'STUDENT' ? 'Track your internship progress.' : 'Track, monitor, and validate student internship life cycles.'}</p>
 
-                {/* On cache les contrôles de recherche complexe pour l'étudiant s'il n'a qu'un seul stage */}
                 {userRole !== 'STUDENT' && (
                     <div className="controls-container">
                         <div className="tabs-container">
@@ -142,8 +169,8 @@ const Internships = () => {
                                         <th style={{ width: '30%', padding: '15px' }}>Student / Objective</th>
                                         <th style={{ width: '20%', padding: '15px' }}>Company (SIRET)</th>
                                         <th style={{ width: '15%', padding: '15px' }}>Start Date</th>
-                                        <th style={{ width: '15%', padding: '15px' }}>Status</th>
-                                        <th style={{ width: '20%', padding: '15px', textAlign: 'center' }}>Actions</th>
+                                        <th style={{ width: '10%', padding: '15px' }}>Status</th>
+                                        <th style={{ width: '25%', padding: '15px', textAlign: 'center' }}>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -158,23 +185,28 @@ const Internships = () => {
                                             const badge = getStatusBadgeStyle(internship.status);
                                             return (
                                                 <tr key={internship.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                                    <td style={{ padding: '15px' }}>
+                                                    <td style={{ padding: '15px', verticalAlign: 'middle' }}>
                                                         <div style={{ fontWeight: '600' }}>{internship.studentEmail || 'Pending Assignment'}</div>
                                                         <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginTop: '4px' }}>{internship.objective?.substring(0,40)}...</div>
                                                     </td>
-                                                    <td style={{ padding: '15px', fontSize: '13px' }}><code>{internship.companySiret}</code></td>
-                                                    <td style={{ padding: '15px', fontSize: '13px' }}>{new Date(internship.startDate).toLocaleDateString()}</td>
-                                                    <td style={{ padding: '15px' }}>
+                                                    <td style={{ padding: '15px', fontSize: '13px', verticalAlign: 'middle' }}><code>{internship.companySiret}</code></td>
+                                                    <td style={{ padding: '15px', fontSize: '13px', verticalAlign: 'middle' }}>{new Date(internship.startDate).toLocaleDateString()}</td>
+                                                    <td style={{ padding: '15px', verticalAlign: 'middle' }}>
                                                         <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11px', color: badge.color, background: badge.bg, fontWeight: 'bold', border: `1px solid ${badge.border}` }}>
                                                             {internship.status}
                                                         </span>
                                                     </td>
                                                     <td style={{ padding: '15px', verticalAlign: 'middle' }}>
-                                                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-                                                            <button onClick={() => handleDetailsClick(internship)} className="logout-button" style={buttonStyle}>Details</button>
+                                                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
+                                                            <button onClick={() => handleDetailsClick(internship)} className="logout-button btn-action">Details</button>
                                                             
                                                             {userRole !== 'STUDENT' && (
-                                                                <button onClick={() => handleUpdateClick(internship)} className="auth-button" style={buttonStyle}>Update</button>
+                                                                <>
+                                                                    <button onClick={() => handleUpdateClick(internship)} className="auth-button btn-action">Update</button>
+                                                                    <button onClick={() => handleDeleteClick(internship)} className="logout-button btn-action" style={{ borderColor: '#ef4444', color: '#ef4444' }}>
+                                                                        Delete
+                                                                    </button>
+                                                                </>
                                                             )}
                                                         </div>
                                                     </td>
@@ -188,9 +220,76 @@ const Internships = () => {
                     )}
                 </div>
 
-                {/* MODALES CONSERVÉES À L'IDENTIQUE ICI... */}
-                {/* ... Modale Details ... */}
-                {/* ... Modale Update ... */}
+                {isDetailsModalOpen && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', zIndex: 9999 }}>
+                        <div className="glass-card" style={{ width: '650px', maxWidth: '95%', padding: '40px', animation: 'fadeIn 0.3s ease' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '25px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '15px' }}>
+                                <h2 style={{ margin: 0 }}>Internship File #{selectedInternship?.id}</h2>
+                                <button onClick={() => setIsDetailsModalOpen(false)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '20px' }}>✖</button>
+                            </div>
+
+                            {isDetailsLoading ? <p style={{ textAlign: 'center' }}>Loading detailed data...</p> : (
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', textAlign: 'left' }}>
+                                    <div style={{ background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                        <h4 style={{ color: '#3b82f6', marginBottom: '12px', marginTop: 0 }}>👤 Student</h4>
+                                        <p><strong>{details.student?.firstName} {details.student?.lastName}</strong></p>
+                                        <p style={{ fontSize: '12px', opacity: 0.7 }}>{details.student?.email}</p>
+                                        <p style={{ fontSize: '12px' }}>Major: {details.student?.major}</p>
+                                    </div>
+                                    <div style={{ background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                        <h4 style={{ color: '#10b981', marginBottom: '12px', marginTop: 0 }}>🏢 Company</h4>
+                                        <p><strong>{details.company?.corporateName}</strong></p>
+                                        <p style={{ fontSize: '11px', opacity: 0.7 }}>SIRET: {details.company?.siret}</p>
+                                        <p style={{ fontSize: '12px', marginTop: '8px' }}>{details.company?.address}</p>
+                                    </div>
+                                    <div style={{ gridColumn: 'span 2', background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '12px' }}>
+                                        <h4 style={{ color: '#f59e0b', marginBottom: '12px', marginTop: 0 }}>🎓 Supervision</h4>
+                                        {details.teacher ? (
+                                            <p>Assigned Tutor: <strong>{details.teacher.firstName} {details.teacher.lastName}</strong> ({details.teacher.email})</p>
+                                        ) : <p style={{ opacity: 0.5, fontStyle: 'italic' }}>No teacher assigned yet.</p>}
+                                    </div>
+                                    <div style={{ gridColumn: 'span 2', marginTop: '15px' }}>
+                                        <h4 style={{ marginBottom: '8px' }}>📝 Objective</h4>
+                                        <p style={{ fontSize: '14px', lineHeight: '1.6', opacity: 0.8, maxHeight: '150px', overflowY: 'auto' }}>
+                                            {selectedInternship?.objective}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {isUpdateModalOpen && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', zIndex: 9999 }}>
+                        <div className="glass-card" style={{ width: '400px', textAlign: 'center', animation: 'fadeIn 0.3s ease' }}>
+                            <h3 style={{ marginBottom: '20px' }}>Update Status</h3>
+                            <select className="auth-input" value={updatingStatus} onChange={(e) => setUpdatingStatus(e.target.value)} style={{ marginBottom: '25px', width: '100%' }}>
+                                <option value="ONGOING">ONGOING</option>
+                                <option value="COMPLETED">COMPLETED</option>
+                                <option value="VALIDATED">VALIDATED</option>
+                                <option value="REJECTED">REJECTED</option>
+                            </select>
+                            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                                <button onClick={handleSaveStatus} className="auth-button btn-action">Save</button>
+                                <button onClick={() => setIsUpdateModalOpen(false)} className="logout-button btn-action">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {deletedInternship && (
+                    <div style={{
+                        position: 'fixed', bottom: '30px', left: '50%', transform: 'translateX(-50%)',
+                        background: '#1f2937', color: '#fff', padding: '12px 24px', borderRadius: '8px',
+                        display: 'flex', alignItems: 'center', gap: '20px', zIndex: 9999, border: '1px solid rgba(255,255,255,0.1)', animation: 'slideUp 0.3s ease',
+                        boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
+                    }}>
+                        <span>Internship #<strong>{deletedInternship.id}</strong> deleted.</span>
+                        <button onClick={handleUndoDelete} style={{ background: 'transparent', border: 'none', color: '#3b82f6', fontWeight: 'bold', cursor: 'pointer', padding: 0 }}>UNDO</button>
+                    </div>
+                )}
+                <style>{`@keyframes slideUp { from { bottom: -50px; opacity: 0; } to { bottom: 30px; opacity: 1; } }`}</style>
             </div>
         </div>
     );

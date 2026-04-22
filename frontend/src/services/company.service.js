@@ -31,6 +31,14 @@ const CompanyService = {
         return axios.post(API_URL, companyData, {
             headers: { Authorization: `Bearer ${token}` }
         });
+    },
+
+    // À ajouter dans l'objet CompanyService de company.service.js
+    deleteCompany: async (siret) => {
+        const token = localStorage.getItem('jwt_token');
+        return axios.delete(`${API_URL}/${siret}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
     }
 };
 

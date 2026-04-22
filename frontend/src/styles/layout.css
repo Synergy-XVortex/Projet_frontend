@@ -183,6 +183,36 @@
     border-color: #ffffff;
 }
 
+/* Hauteur unifiée pour tous les boutons d'action (Tables et Cards) */
+.btn-action {
+    height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 20px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    box-sizing: border-box;
+    margin: 0;
+    min-width: 100px;
+    width: auto;
+}
+
+/* Ajustement pour que les boutons dans un groupe se partagent l'espace */
+.btn-group {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+}
+
+.btn-group .btn-action {
+    flex: 1;
+    padding: 0 10px; /* Padding réduit pour éviter que le texte ne déborde sur les petits écrans */
+}
+
 /* =========================================
    6. FORMS & INPUTS
    ========================================= */

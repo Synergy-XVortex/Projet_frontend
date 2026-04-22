@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import CompanyService from '../services/company.service';
 import { jwtDecode } from 'jwt-decode';
 import '../styles/layout.css';
@@ -8,41 +8,34 @@ const Companies = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     
-    // États pour la création et la modification
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [editingCompany, setEditingCompany] = useState(null);
     const [formData, setFormData] = useState({
         siret: '', corporateName: '', address: '', contactEmail: '', contactPhone: ''
     });
 
-    // --- LECTURE DU RÔLE UTILISATEUR ---
+    const [deletedCompany, setDeletedCompany] = useState(null);
+    const deleteTimeoutRef = useRef(null);
+
     const token = localStorage.getItem('jwt_token');
     let userRole = '';
     if (token) {
         try {
             const decoded = jwtDecode(token);
             userRole = decoded.role;
-        } catch (error) { 
-            console.error("Invalid token"); 
-        }
+        } catch (error) { console.error("Invalid token"); }
     }
 
-    useEffect(() => { 
-        fetchCompanies(); 
-    }, []);
+    useEffect(() => { fetchCompanies(); }, []);
 
     const fetchCompanies = async () => {
         setIsLoading(true);
         try {
             const response = await CompanyService.getAllCompanies();
-            if (Array.isArray(response.data)) {
-                setCompanies(response.data);
-            } else {
-                setCompanies([]);
-            }
-        } catch (error) {
+            setCompanies(Array.isArray(response.data) ? response.data : []);
+        } catch (error) { 
             console.error("Failed to load companies:", error);
-            setCompanies([]);
+            setCompanies([]); 
         } finally { 
             setIsLoading(false); 
         }
@@ -61,7 +54,32 @@ const Companies = () => {
         });
     }, [companies, searchTerm]);
 
-    // --- ACTIONS DE MODIFICATION ---
+    const handleDeleteClick = (company) => {
+        setCompanies(prev => prev.filter(c => c.siret !== company.siret));
+        setDeletedCompany(company);
+        if (deleteTimeoutRef.current) clearTimeout(deleteTimeoutRef.current);
+        deleteTimeoutRef.current = setTimeout(async () => {
+            try {
+                await CompanyService.deleteCompany(company.siret);
+            } catch (err) {
+                alert("Erreur lors de la suppression de l'entreprise.");
+                fetchCompanies();
+            }
+            setDeletedCompany(null);
+        }, 5000);
+    };
+
+    const handleUndoDelete = () => {
+        if (deleteTimeoutRef.current) {
+            clearTimeout(deleteTimeoutRef.current);
+            deleteTimeoutRef.current = null;
+        }
+        if (deletedCompany) {
+            setCompanies(prev => [...prev, deletedCompany]);
+            setDeletedCompany(null);
+        }
+    };
+
     const handleEditClick = (company) => {
         setEditingCompany(company);
         setFormData({
@@ -77,19 +95,13 @@ const Companies = () => {
         e.preventDefault();
         const siretToUpdate = editingCompany.siret;
         if (!siretToUpdate) return;
-        
         try {
-            const updatedData = { ...editingCompany, ...formData };
-            await CompanyService.updateCompany(siretToUpdate, updatedData);
+            await CompanyService.updateCompany(siretToUpdate, formData);
             setEditingCompany(null);
             fetchCompanies();
-        } catch (err) { 
-            console.error("Erreur lors de la mise à jour:", err);
-            alert("Erreur lors de la mise à jour de l'entreprise."); 
-        }
+        } catch (err) { alert("Erreur lors de la mise à jour de l'entreprise."); }
     };
 
-    // --- ACTIONS DE CRÉATION ---
     const handleOpenCreateModal = () => {
         setFormData({ siret: '', corporateName: '', address: '', contactEmail: '', contactPhone: '' });
         setIsCreateModalOpen(true);
@@ -105,13 +117,8 @@ const Companies = () => {
             await CompanyService.createCompany(formData);
             setIsCreateModalOpen(false);
             fetchCompanies();
-        } catch (err) {
-            console.error(err);
-            alert("Erreur lors de la création de l'entreprise. Vérifiez que le SIRET n'existe pas déjà.");
-        }
+        } catch (err) { alert("Erreur lors de la création. Le SIRET existe peut-être déjà."); }
     };
-
-    const buttonStyle = { width: '100px', height: '36px', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '0', fontSize: '13px' };
 
     return (
         <div className="app-layout">
@@ -131,24 +138,15 @@ const Companies = () => {
                                 placeholder="Search name, city, email..." 
                                 value={searchTerm} 
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                style={{ width: 'auto', height: '42px', boxSizing: 'border-box' }}
+                                style={{ height: '42px', boxSizing: 'border-box' }}
                             />
                         </div>
                         
-                        {/* BOUTON D'AJOUT (Administrateurs / Professeurs) */}
                         {userRole !== 'STUDENT' && (
                             <button 
                                 onClick={handleOpenCreateModal} 
-                                className="auth-button" 
-                                style={{ 
-                                    margin: 0,
-                                    height: '42px', 
-                                    boxSizing: 'border-box',
-                                    padding: '0 20px', 
-                                    display: 'flex', 
-                                    alignItems: 'center', 
-                                    gap: '8px' 
-                                }}
+                                className="auth-button btn-action" 
+                                style={{ gap: '8px' }}
                             >
                                 <span style={{ fontSize: '18px', fontWeight: 'bold' }}>+</span> Add Company
                             </button>
@@ -156,24 +154,10 @@ const Companies = () => {
                     </div>
                 </div>
 
-                {/* MODALE DE CRÉATION (Vraie Pop-up flottante) */}
                 {isCreateModalOpen && (
-                    <div style={{ 
-                        position: 'fixed', 
-                        top: 0, 
-                        left: 0, 
-                        width: '100vw', 
-                        height: '100vh', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center', 
-                        background: 'rgba(0,0,0,0.8)', 
-                        backdropFilter: 'blur(5px)',
-                        zIndex: 9999 
-                    }}>
+                    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', zIndex: 9999 }}>
                         <div className="glass-card" style={{ width: '500px', maxWidth: '90%', animation: 'fadeIn 0.3s ease' }}>
                             <h3 style={{ marginBottom: '20px', marginTop: 0 }}>Register New Company</h3>
-                            
                             <form onSubmit={handleCreateCompany} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                                 <div className="auth-input-group" style={{ marginBottom: 0 }}>
                                     <label className="auth-label">SIRET (14 digits) *</label>
@@ -198,19 +182,18 @@ const Companies = () => {
                                     </div>
                                 </div>
                                 <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
-                                    <button type="button" onClick={() => setIsCreateModalOpen(false)} className="logout-button" style={{ ...buttonStyle, width: '120px' }}>Cancel</button>
-                                    <button type="submit" className="auth-button" style={{ ...buttonStyle, width: '120px' }}>Create</button>
+                                    <button type="button" onClick={() => setIsCreateModalOpen(false)} className="logout-button btn-action">Cancel</button>
+                                    <button type="submit" className="auth-button btn-action">Create</button>
                                 </div>
                             </form>
                         </div>
                     </div>
                 )}
 
-                {/* Formulaire d'édition (Inline, protégé) */}
                 {userRole !== 'STUDENT' && editingCompany && (
                     <div className="glass-card" style={{ marginBottom: '30px', animation: 'fadeIn 0.3s ease', borderLeft: '4px solid #3b82f6' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <h3>Edit Company: {editingCompany.corporateName || editingCompany.corporate_name}</h3>
+                            <h3>Edit Company: {editingCompany.corporateName}</h3>
                             <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>SIRET: {editingCompany.siret}</span>
                         </div>
                         <form onSubmit={handleSaveUpdate} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginTop: '15px' }}>
@@ -231,14 +214,13 @@ const Companies = () => {
                                 <input name="contactPhone" className="auth-input" value={formData.contactPhone} onChange={(e) => setFormData({...formData, contactPhone: e.target.value})} />
                             </div>
                             <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', paddingBottom: '2px' }}>
-                                <button type="submit" className="auth-button" style={buttonStyle}>Save</button>
-                                <button type="button" onClick={() => setEditingCompany(null)} className="logout-button" style={buttonStyle}>Cancel</button>
+                                <button type="submit" className="auth-button btn-action">Save</button>
+                                <button type="button" onClick={() => setEditingCompany(null)} className="logout-button btn-action">Cancel</button>
                             </div>
                         </form>
                     </div>
                 )}
 
-                {/* --- Grille des entreprises --- */}
                 {isLoading ? (
                     <div className="glass-card"><p style={{ textAlign: 'center' }}>Loading companies directory...</p></div>
                 ) : (
@@ -246,14 +228,14 @@ const Companies = () => {
                         {filteredCompanies.length === 0 ? (
                             <div className="glass-card" style={{ gridColumn: '1 / -1', textAlign: 'center' }}><p>No companies found matching your search.</p></div>
                         ) : (
-                            filteredCompanies.map((company, index) => {
+                            filteredCompanies.map((company) => {
                                 const compName = company.corporateName || company.corporate_name || 'Unknown Company';
                                 const compAddress = company.address || 'No address provided';
                                 const compEmail = company.contactEmail || company.contact_email || 'No email';
                                 const firstLetter = compName.charAt(0).toUpperCase();
 
                                 return (
-                                    <div key={company.siret || index} className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px', transition: 'transform 0.2s' }}>
+                                    <div key={company.siret} className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px', transition: 'transform 0.2s' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                                             <div style={{ width: '50px', height: '50px', background: 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)', borderRadius: '10px', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '24px', fontWeight: 'bold', color: 'white' }}>
                                                 {firstLetter}
@@ -270,7 +252,14 @@ const Companies = () => {
                                         </div>
 
                                         {userRole !== 'STUDENT' && (
-                                            <button onClick={() => handleEditClick(company)} className="auth-button" style={{ marginTop: 'auto', padding: '10px' }}>Edit Company</button>
+                                            <div className="btn-group" style={{ marginTop: 'auto', paddingTop: '15px' }}>
+                                                <button onClick={() => handleEditClick(company)} className="auth-button btn-action">
+                                                    Edit
+                                                </button>
+                                                <button onClick={() => handleDeleteClick(company)} className="logout-button btn-action" style={{ borderColor: '#ef4444', color: '#ef4444' }}>
+                                                    Delete
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
                                 );
@@ -278,7 +267,20 @@ const Companies = () => {
                         )}
                     </div>
                 )}
+
+                {deletedCompany && (
+                    <div style={{
+                        position: 'fixed', bottom: '30px', left: '50%', transform: 'translateX(-50%)',
+                        background: '#1f2937', color: '#fff', padding: '12px 24px', borderRadius: '8px',
+                        display: 'flex', alignItems: 'center', gap: '20px', zIndex: 9999, border: '1px solid rgba(255,255,255,0.1)', animation: 'slideUp 0.3s ease',
+                        boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
+                    }}>
+                        <span>Company <strong>{deletedCompany.corporateName}</strong> deleted.</span>
+                        <button onClick={handleUndoDelete} style={{ background: 'transparent', border: 'none', color: '#3b82f6', fontWeight: 'bold', cursor: 'pointer', padding: 0 }}>UNDO</button>
+                    </div>
+                )}
             </div>
+            <style>{`@keyframes slideUp { from { bottom: -50px; opacity: 0; } to { bottom: 30px; opacity: 1; } }`}</style>
         </div>
     );
 };

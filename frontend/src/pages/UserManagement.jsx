@@ -16,7 +16,6 @@ const UserManagement = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
 
-    // --- ÉTATS POUR LA SUPPRESSION (UNDO) ---
     const [deletedUser, setDeletedUser] = useState(null);
     const deleteTimeoutRef = useRef(null);
 
@@ -107,23 +106,17 @@ const UserManagement = () => {
         }
     };
 
-    // --- LOGIQUE DE SUPPRESSION AVEC UNDO ---
     const handleDeleteClick = (user) => {
-        // 1. Suppression optimiste de l'UI
         setUsers(users.filter(u => u.email !== user.email));
         setDeletedUser(user);
-
-        // 2. Nettoyage du chrono précédent (si clics rapides)
         if (deleteTimeoutRef.current) clearTimeout(deleteTimeoutRef.current);
-
-        // 3. Déclenchement du vrai DELETE après 5 secondes
         deleteTimeoutRef.current = setTimeout(async () => {
             try {
                 await UserService.deleteUser(user.email);
             } catch (err) {
                 console.error(err);
                 alert("Erreur lors de la suppression.");
-                fetchUsers(false); // Recharge si échec
+                fetchUsers(false); 
             }
             setDeletedUser(null);
         }, 5000);
@@ -134,14 +127,11 @@ const UserManagement = () => {
             clearTimeout(deleteTimeoutRef.current);
             deleteTimeoutRef.current = null;
         }
-        // Restaure l'utilisateur dans l'interface
         if (deletedUser) {
             setUsers(prev => [...prev, deletedUser]);
             setDeletedUser(null);
         }
     };
-
-    const buttonStyle = { minWidth: '70px', padding: '0 10px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '0', fontSize: '12px' };
 
     return (
         <div className="app-layout">
@@ -166,12 +156,10 @@ const UserManagement = () => {
                     </div>
                 </div>
 
-                {/* Formulaire d'édition (Gardé intact) */}
                 {editingUser && (
                     <div className="glass-card" style={{ marginBottom: '30px', animation: 'fadeIn 0.3s ease' }}>
                         <h3>Edit Profile: {editingUser.email}</h3>
                         <form onSubmit={handleSaveUpdate} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px', marginTop: '15px' }}>
-                            {/* ... (Champs de formulaire identiques) ... */}
                             <div className="auth-input-group" style={{ marginBottom: 0 }}>
                                 <label className="auth-label">First Name</label>
                                 <input name="firstName" className="auth-input" value={formData.firstName} onChange={(e) => setFormData({...formData, firstName: e.target.value})} />
@@ -194,8 +182,8 @@ const UserManagement = () => {
                                 <input name="major" className="auth-input" value={formData.major} onChange={(e) => setFormData({...formData, major: e.target.value})} />
                             </div>
                             <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', paddingBottom: '2px' }}>
-                                <button type="submit" className="auth-button" style={{...buttonStyle, height: '36px'}}>Save</button>
-                                <button type="button" onClick={() => setEditingUser(null)} className="logout-button" style={{...buttonStyle, height: '36px'}}>Cancel</button>
+                                <button type="submit" className="auth-button btn-action">Save</button>
+                                <button type="button" onClick={() => setEditingUser(null)} className="logout-button btn-action">Cancel</button>
                             </div>
                         </form>
                     </div>
@@ -219,10 +207,10 @@ const UserManagement = () => {
                                 <tbody>
                                     {processedUsers.map(user => (
                                         <tr key={user.email} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background 0.2s' }}>
-                                            <td style={{ padding: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.firstName || 'N/A'} {user.lastName || ''}</td>
-                                            <td style={{ padding: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={user.email}>{user.email}</td>
-                                            <td style={{ padding: '15px', fontSize: '13px' }}>{user.role}</td>
-                                            <td style={{ padding: '15px' }}>
+                                            <td style={{ padding: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', verticalAlign: 'middle' }}>{user.firstName || 'N/A'} {user.lastName || ''}</td>
+                                            <td style={{ padding: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', verticalAlign: 'middle' }} title={user.email}>{user.email}</td>
+                                            <td style={{ padding: '15px', fontSize: '13px', verticalAlign: 'middle' }}>{user.role}</td>
+                                            <td style={{ padding: '15px', verticalAlign: 'middle' }}>
                                                 <span style={{ 
                                                     padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold',
                                                     color: user.active ? '#86efac' : '#fca5a5', 
@@ -232,24 +220,24 @@ const UserManagement = () => {
                                                     {user.active ? 'ACTIVE' : 'INACTIVE'}
                                                 </span>
                                             </td>
-                                            <td style={{ padding: '15px', display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                                                <button onClick={() => handleEditClick(user)} className="logout-button" style={buttonStyle}>Edit</button>
-                                                <button 
-                                                    onClick={() => handleToggleStatus(user)} 
-                                                    className="auth-button" 
-                                                    style={{ ...buttonStyle, background: user.active ? 'rgba(239, 68, 68, 0.6)' : 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)' }}
-                                                >
-                                                    {user.active ? 'Deactivate' : 'Activate'}
-                                                </button>
-                                                
-                                                {/* NOUVEAU : BOUTON DELETE */}
-                                                <button 
-                                                    onClick={() => handleDeleteClick(user)} 
-                                                    className="logout-button" 
-                                                    style={{ ...buttonStyle, borderColor: '#ef4444', color: '#ef4444' }}
-                                                >
-                                                    Delete
-                                                </button>
+                                            <td style={{ padding: '15px', verticalAlign: 'middle' }}>
+                                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
+                                                    <button onClick={() => handleEditClick(user)} className="logout-button btn-action">Edit</button>
+                                                    <button 
+                                                        onClick={() => handleToggleStatus(user)} 
+                                                        className="auth-button btn-action" 
+                                                        style={{ background: user.active ? 'rgba(239, 68, 68, 0.6)' : 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)' }}
+                                                    >
+                                                        {user.active ? 'Deactivate' : 'Activate'}
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleDeleteClick(user)} 
+                                                        className="logout-button btn-action" 
+                                                        style={{ borderColor: '#ef4444', color: '#ef4444' }}
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -259,7 +247,6 @@ const UserManagement = () => {
                     )}
                 </div>
 
-                {/* --- NOTIFICATION TOAST POUR LE UNDO --- */}
                 {deletedUser && (
                     <div style={{
                         position: 'fixed', bottom: '30px', left: '50%', transform: 'translateX(-50%)',
@@ -268,21 +255,10 @@ const UserManagement = () => {
                         zIndex: 9999, border: '1px solid rgba(255,255,255,0.1)', animation: 'slideUp 0.3s ease'
                     }}>
                         <span>User <strong>{deletedUser.email}</strong> deleted.</span>
-                        <button 
-                            onClick={handleUndoDelete}
-                            style={{
-                                background: 'transparent', border: 'none', color: '#3b82f6', 
-                                fontWeight: 'bold', cursor: 'pointer', fontSize: '14px', padding: 0
-                            }}
-                        >
-                            UNDO
-                        </button>
+                        <button onClick={handleUndoDelete} style={{ background: 'transparent', border: 'none', color: '#3b82f6', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px', padding: 0 }}>UNDO</button>
                     </div>
                 )}
-                
-                <style>{`
-                    @keyframes slideUp { from { bottom: -50px; opacity: 0; } to { bottom: 30px; opacity: 1; } }
-                `}</style>
+                <style>{`@keyframes slideUp { from { bottom: -50px; opacity: 0; } to { bottom: 30px; opacity: 1; } }`}</style>
             </div>
         </div>
     );

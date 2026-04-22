@@ -22,6 +22,14 @@ class InternshipService {
             headers: { Authorization: `Bearer ${token}` }
         });
     }
+
+    // À l'intérieur de la classe InternshipService :
+    deleteInternship(id) {
+        const token = localStorage.getItem('jwt_token');
+        return axios.delete(`${API_URL}/${id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+    }
 }
 
 export default new InternshipService();
