@@ -12,21 +12,22 @@ const UserService = {
 
     activateUser: (email) => {
         if (!email) return Promise.reject("Missing User Email");
-        // Use PATCH as defined in swagger.yaml
         return api.patch(`/users/${email}/activate`); 
     },
 
     toggleUserStatus: (user) => {
         if (!user || !user.email) return Promise.reject("Invalid user object");
-        
         if (!user.active) {
-            // Activate the user using the specific endpoint
             return UserService.activateUser(user.email);
         } else {
-            // Deactivate the user by updating the whole profile
             const updatedUser = { ...user, active: false };
             return UserService.updateUser(user.email, updatedUser);
         }
+    },
+
+    // NOUVELLE MÉTHODE : Suppression
+    deleteUser: (email) => {
+        return api.delete(`/users/${email}`);
     }
 };
 

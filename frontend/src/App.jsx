@@ -6,6 +6,7 @@ import UserManagement from './pages/UserManagement';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 import Companies from './pages/Companies';
+import Internships from './pages/Internships'; // Import de la nouvelle page
 
 /**
  * MainLayout component that includes the Navbar for authenticated users.
@@ -48,16 +49,13 @@ function App() {
             {/* General access for all logged-in roles */}
             <Route path="/dashboard" element={<Dashboard />} />
             
-            {/* Vraie route vers la page Entreprises */}
+            {/* Accès à l'annuaire des entreprises */}
             <Route path="/companies" element={<Companies />} />
             
-            {/* Placeholder route for future implementation */}
-            <Route path="/internships" element={
-                <div style={{ textAlign: 'center', marginTop: '100px' }}>
-                    <h2>Internships List</h2>
-                    <p>Coming soon...</p>
-                </div>
-            } />
+            {/* Gestion des Stages : 
+               Accessible aux ADMIN, TEACHER et STUDENT (selon leur vue) 
+            */}
+            <Route path="/internships" element={<Internships />} />
 
             {/* =========================================
                 ADMIN ONLY ROUTES

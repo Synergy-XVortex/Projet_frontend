@@ -1,22 +1,19 @@
-import { useState, useEffect } from 'react'; // Added useEffect
-import { NavLink, useNavigate, useLocation } from 'react-router-dom'; // Added useLocation
+import { useState, useEffect } from 'react';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import AuthService from '../services/auth.service';
 import '../styles/layout.css';
 
 /**
- * Navigation Bar component.
- * Added useLocation to force close the menu even when clicking on the current page.
+ * Navigation Bar component with dynamic links based on user roles.
  */
 const Navbar = () => {
     const navigate = useNavigate();
-    const location = useLocation(); // Hook to listen to URL changes
+    const location = useLocation();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     
-    // Logic to close the menu
     const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
-    // FAIL-SAFE: Automatically close menu whenever the location changes
     useEffect(() => {
         closeMobileMenu();
     }, [location]); 
@@ -56,6 +53,8 @@ const Navbar = () => {
                 links.push({ path: '/companies', label: 'Companies Directory' });
                 break;
             case 'ADMINISTRATOR':
+                // AJOUT : Lien vers la gestion des stages pour l'admin
+                links.push({ path: '/internships', label: 'Internships' });
                 links.push({ path: '/companies', label: 'Companies Directory' });
                 links.push({ path: '/admin/users', label: 'User Management' });
                 break;
@@ -85,7 +84,6 @@ const Navbar = () => {
                 {isMobileMenuOpen ? '✖' : '☰'}
             </button>
 
-            {/* Added an overlay to close the menu when clicking outside (optional but recommended) */}
             {isMobileMenuOpen && (
                 <div 
                     className="mobile-overlay" 
@@ -104,7 +102,7 @@ const Navbar = () => {
                             key={link.path} 
                             to={link.path} 
                             className={({ isActive }) => isActive ? "nav-link active" : "nav-link"}
-                            onClick={closeMobileMenu} // Explicitly close even if it's the same page
+                            onClick={closeMobileMenu}
                         >
                             {link.label}
                         </NavLink>

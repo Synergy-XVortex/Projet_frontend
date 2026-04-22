@@ -1,4 +1,7 @@
-/* Main layout wrapper with global background */
+/* =========================================
+   1. GLOBAL & LAYOUT
+   ========================================= */
+
 .app-layout {
     min-height: 100vh;
     background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('http://googleusercontent.com/image_collection/image_retrieval/12074542400162400501');
@@ -9,7 +12,35 @@
     color: #ffffff;
 }
 
-/* Glassmorphism Navigation Bar */
+.page-container {
+    width: 100%;
+    max-width: 96%; /* Use 95% to leave a small gap on the sides, or 100% for full edge-to-edge */
+    margin: 0 auto;
+    padding: 40px 20px;
+    box-sizing: border-box;
+}
+
+/* =========================================
+   2. TYPOGRAPHY
+   ========================================= */
+
+.page-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 10px;
+}
+
+.page-subtitle {
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 30px;
+}
+
+/* =========================================
+   3. NAVIGATION BAR (GLASSMORPHISM)
+   ========================================= */
+
 .navbar {
     background: rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(10px);
@@ -52,7 +83,8 @@
     transition: color 0.2s ease;
 }
 
-.nav-link:hover, .nav-link.active {
+.nav-link:hover, 
+.nav-link.active {
     color: #3b82f6;
 }
 
@@ -60,51 +92,14 @@
     color: #ef4444; /* Red to distinguish admin actions */
 }
 
-/* Updated logout button to match glass theme */
-.logout-button {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    padding: 8px 16px;
-    border-radius: 6px;
-    color: #ffffff;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.logout-button:hover {
-    background: rgba(255, 255, 255, 0.2);
-    border-color: #ffffff;
-}
-
 .user-info {
     font-size: 13px;
     color: rgba(255, 255, 255, 0.7);
 }
 
-/* Main Content Container */
-.page-container {
-    width: 100%;
-    /* Use 95% to leave a small gap on the sides, or 100% for full edge-to-edge */
-    max-width: 96%; 
-    margin: 0 auto;
-    padding: 40px 20px;
-    box-sizing: border-box;
-}
-
-.page-title {
-    font-size: 28px;
-    font-weight: 700;
-    color: #ffffff;
-    margin-bottom: 10px;
-}
-
-.page-subtitle {
-    font-size: 15px;
-    color: rgba(255, 255, 255, 0.7);
-    margin-bottom: 30px;
-}
+/* =========================================
+   4. CARDS & CONTAINERS
+   ========================================= */
 
 /* Reusable Glassmorphism Card for dashboard widgets and tables */
 .glass-card {
@@ -126,7 +121,6 @@
     color: rgba(255, 255, 255, 0.7);
 }
 
-/* --- Dynamic User Management Controls --- */
 .controls-container {
     display: flex;
     justify-content: space-between;
@@ -144,6 +138,10 @@
     border-radius: 8px;
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
+
+/* =========================================
+   5. BUTTONS
+   ========================================= */
 
 .tab-button {
     background: transparent;
@@ -167,6 +165,27 @@
     color: #ffffff;
     box-shadow: 0 2px 10px rgba(59, 130, 246, 0.4);
 }
+
+.logout-button {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 8px 16px;
+    border-radius: 6px;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.logout-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: #ffffff;
+}
+
+/* =========================================
+   6. FORMS & INPUTS
+   ========================================= */
 
 .search-container {
     position: relative;
@@ -200,7 +219,10 @@
     opacity: 0.6;
 }
 
-/* Sortable Table Headers */
+/* =========================================
+   7. TABLES & DASHBOARD STATS
+   ========================================= */
+
 .sortable-header {
     cursor: pointer;
     user-select: none;
@@ -251,7 +273,7 @@
 }
 
 /* =========================================
-   Responsive Navbar (Mobile Menu)
+   8. RESPONSIVE NAVBAR (MOBILE MENU)
    ========================================= */
 
 .mobile-menu-btn {
@@ -265,7 +287,6 @@
     z-index: 101;
 }
 
-/* Container qui englobe les deux blocs de liens */
 .navbar-menu {
     display: flex;
     flex-grow: 1;
@@ -276,17 +297,17 @@
 
 @media (max-width: 768px) {
     .mobile-menu-btn {
-        display: block; /* On affiche le bouton Hamburger */
+        display: block;
     }
 
     .navbar-menu {
-        display: none; /* On cache le menu par défaut sur mobile */
+        display: none;
         flex-direction: column;
         position: absolute;
-        top: 70px; /* Juste en dessous de la navbar */
+        top: 70px;
         left: 0;
         width: 100%;
-        background: rgba(15, 15, 15, 0.95); /* Fond sombre et flou */
+        background: rgba(15, 15, 15, 0.95);
         backdrop-filter: blur(15px);
         padding: 20px;
         box-sizing: border-box;
@@ -296,7 +317,7 @@
     }
 
     .navbar-menu.open {
-        display: flex; /* La classe .open permet d'afficher le menu */
+        display: flex;
         gap: 20px;
     }
 
@@ -318,6 +339,6 @@
     }
     
     .logout-button {
-        width: 100%; /* Le bouton prend toute la largeur sur mobile */
+        width: 100%;
     }
 }
