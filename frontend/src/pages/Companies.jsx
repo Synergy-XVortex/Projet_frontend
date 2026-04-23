@@ -8,7 +8,10 @@ const Companies = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     
+    // États pour les modales
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    
     const [editingCompany, setEditingCompany] = useState(null);
     const [formData, setFormData] = useState({
         siret: '', corporateName: '', address: '', contactEmail: '', contactPhone: ''
@@ -89,6 +92,7 @@ const Companies = () => {
             contactEmail: company.contactEmail || company.contact_email || '',
             contactPhone: company.contactPhone || company.contact_phone || ''
         });
+        setIsEditModalOpen(true);
     };
 
     const handleSaveUpdate = async (e) => {
@@ -98,6 +102,7 @@ const Companies = () => {
         try {
             await CompanyService.updateCompany(siretToUpdate, formData);
             setEditingCompany(null);
+            setIsEditModalOpen(false);
             fetchCompanies();
         } catch (err) { alert("Erreur lors de la mise à jour de l'entreprise."); }
     };
@@ -154,6 +159,7 @@ const Companies = () => {
                     </div>
                 </div>
 
+                {/* MODALE DE CRÉATION */}
                 {isCreateModalOpen && (
                     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', zIndex: 9999 }}>
                         <div className="glass-card" style={{ width: '500px', maxWidth: '90%', animation: 'fadeIn 0.3s ease' }}>
@@ -190,34 +196,39 @@ const Companies = () => {
                     </div>
                 )}
 
-                {userRole !== 'STUDENT' && editingCompany && (
-                    <div className="glass-card" style={{ marginBottom: '30px', animation: 'fadeIn 0.3s ease', borderLeft: '4px solid #3b82f6' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <h3>Edit Company: {editingCompany.corporateName}</h3>
-                            <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>SIRET: {editingCompany.siret}</span>
+                {/* MODALE D'ÉDITION */}
+                {isEditModalOpen && editingCompany && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', zIndex: 9999 }}>
+                        <div className="glass-card" style={{ width: '500px', maxWidth: '90%', animation: 'fadeIn 0.3s ease', borderLeft: '4px solid #3b82f6' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                                <h3 style={{ margin: 0 }}>Edit Company</h3>
+                                <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>SIRET: {editingCompany.siret}</span>
+                            </div>
+                            <form onSubmit={handleSaveUpdate} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                <div className="auth-input-group" style={{ marginBottom: 0 }}>
+                                    <label className="auth-label">Corporate Name *</label>
+                                    <input name="corporateName" className="auth-input" value={formData.corporateName} onChange={(e) => setFormData({...formData, corporateName: e.target.value})} required />
+                                </div>
+                                <div className="auth-input-group" style={{ marginBottom: 0 }}>
+                                    <label className="auth-label">Address</label>
+                                    <input name="address" className="auth-input" value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} />
+                                </div>
+                                <div style={{ display: 'flex', gap: '15px' }}>
+                                    <div className="auth-input-group" style={{ flex: 1, marginBottom: 0 }}>
+                                        <label className="auth-label">Contact Email</label>
+                                        <input name="contactEmail" type="email" className="auth-input" value={formData.contactEmail} onChange={(e) => setFormData({...formData, contactEmail: e.target.value})} />
+                                    </div>
+                                    <div className="auth-input-group" style={{ flex: 1, marginBottom: 0 }}>
+                                        <label className="auth-label">Contact Phone</label>
+                                        <input name="contactPhone" className="auth-input" value={formData.contactPhone} onChange={(e) => setFormData({...formData, contactPhone: e.target.value})} />
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
+                                    <button type="button" onClick={() => { setIsEditModalOpen(false); setEditingCompany(null); }} className="logout-button btn-action">Cancel</button>
+                                    <button type="submit" className="auth-button btn-action">Save Changes</button>
+                                </div>
+                            </form>
                         </div>
-                        <form onSubmit={handleSaveUpdate} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginTop: '15px' }}>
-                            <div className="auth-input-group" style={{ marginBottom: 0 }}>
-                                <label className="auth-label">Corporate Name</label>
-                                <input name="corporateName" className="auth-input" value={formData.corporateName} onChange={(e) => setFormData({...formData, corporateName: e.target.value})} required />
-                            </div>
-                            <div className="auth-input-group" style={{ marginBottom: 0 }}>
-                                <label className="auth-label">Address</label>
-                                <input name="address" className="auth-input" value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} required />
-                            </div>
-                            <div className="auth-input-group" style={{ marginBottom: 0 }}>
-                                <label className="auth-label">Contact Email</label>
-                                <input name="contactEmail" type="email" className="auth-input" value={formData.contactEmail} onChange={(e) => setFormData({...formData, contactEmail: e.target.value})} required />
-                            </div>
-                            <div className="auth-input-group" style={{ marginBottom: 0 }}>
-                                <label className="auth-label">Contact Phone</label>
-                                <input name="contactPhone" className="auth-input" value={formData.contactPhone} onChange={(e) => setFormData({...formData, contactPhone: e.target.value})} />
-                            </div>
-                            <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', paddingBottom: '2px' }}>
-                                <button type="submit" className="auth-button btn-action">Save</button>
-                                <button type="button" onClick={() => setEditingCompany(null)} className="logout-button btn-action">Cancel</button>
-                            </div>
-                        </form>
                     </div>
                 )}
 
@@ -232,6 +243,7 @@ const Companies = () => {
                                 const compName = company.corporateName || company.corporate_name || 'Unknown Company';
                                 const compAddress = company.address || 'No address provided';
                                 const compEmail = company.contactEmail || company.contact_email || 'No email';
+                                const compPhone = company.contactPhone || company.contact_phone || 'No phone provided'; // <-- Ajout du téléphone
                                 const firstLetter = compName.charAt(0).toUpperCase();
 
                                 return (
@@ -249,6 +261,7 @@ const Companies = () => {
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', color: 'rgba(255,255,255,0.7)', fontSize: '13px' }}>
                                             <span style={{ display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><span style={{ opacity: 0.7 }}>📍</span> {compAddress}</span>
                                             <span style={{ display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><span style={{ opacity: 0.7 }}>✉️</span> {compEmail}</span>
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><span style={{ opacity: 0.7 }}>📞</span> {compPhone}</span>
                                         </div>
 
                                         {userRole !== 'STUDENT' && (
