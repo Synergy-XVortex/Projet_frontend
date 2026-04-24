@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import UserService from '../services/user.service';
-import AuthService from '../services/auth.service'; // Import pour la création
+import AuthService from '../services/auth.service'; // Import for creation
 import '../styles/layout.css';
 
 const UserManagement = () => {
@@ -8,14 +8,14 @@ const UserManagement = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState('');
     
-    // États pour l'Édition
+    // States for Editing
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
     const [editFormData, setEditFormData] = useState({ 
         firstName: '', lastName: '', role: '', major: '' 
     });
 
-    // États pour la Création
+    // States for Creation
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [createFormData, setCreateFormData] = useState({
         email: '', firstName: '', lastName: '', role: 'STUDENT', major: '', password: ''
@@ -84,14 +84,14 @@ const UserManagement = () => {
         return sortConfig.direction === 'ascending' ? ' ↑' : ' ↓';
     };
 
-    // --- UTILITAIRE DE NETTOYAGE ---
+    // --- CLEANING UTILITY ---
     const sanitizeString = (str) => {
         if (!str) return '';
-        // Retire les accents et les espaces inutiles
+        // Removes accents and unnecessary spaces
         return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
     };
 
-    // --- ACTIONS DE MODIFICATION ---
+    // --- UPDATE ACTIONS ---
     const handleEditClick = (user) => {
         setEditingUser(user);
         setEditFormData({ 
@@ -107,7 +107,7 @@ const UserManagement = () => {
         e.preventDefault();
         if (!editingUser?.email) return;
 
-        // Validation & Nettoyage
+        // Validation & Cleaning
         const sanitizedData = {
             ...editingUser,
             firstName: sanitizeString(editFormData.firstName),
@@ -129,7 +129,7 @@ const UserManagement = () => {
         } catch (err) { alert("Error updating user."); }
     };
 
-    // --- ACTIONS DE CRÉATION ---
+    // --- CREATION ACTIONS ---
     const handleOpenCreateModal = () => {
         setCreateFormData({ email: '', firstName: '', lastName: '', role: 'STUDENT', major: '', password: '' });
         setIsCreateModalOpen(true);
@@ -138,7 +138,7 @@ const UserManagement = () => {
     const handleCreateUser = async (e) => {
         e.preventDefault();
 
-        // Validation & Nettoyage
+        // Validation & Cleaning
         const sanitizedData = {
             email: createFormData.email.trim().toLowerCase(),
             firstName: sanitizeString(createFormData.firstName),
@@ -166,7 +166,7 @@ const UserManagement = () => {
         }
     };
 
-    // --- CHANGEMENT DE STATUT DIRECT ---
+    // --- DIRECT STATUS CHANGE ---
     const handleToggleStatus = async (user) => {
         const newStatus = !user.active;
         setUsers(users.map(u => u.email === user.email ? { ...u, active: newStatus } : u));
@@ -188,7 +188,7 @@ const UserManagement = () => {
                 await UserService.deleteUser(user.email);
             } catch (err) {
                 console.error(err);
-                alert("Erreur lors de la suppression.");
+                alert("Error during deletion.");
                 fetchUsers(false); 
             }
             setDeletedUser(null);
@@ -209,15 +209,20 @@ const UserManagement = () => {
     return (
         <div className="app-layout">
             <div className="page-container" style={{ position: 'relative' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' }}>
-                    <h1 className="page-title" style={{ margin: 0 }}>User Management</h1>
-                    <button 
-                        onClick={handleOpenCreateModal} 
-                        className="auth-button btn-action" 
-                        style={{ gap: '8px' }}
-                    >
-                        <span style={{ fontSize: '18px', fontWeight: 'bold' }}>+</span> Add User
-                    </button>
+                <div className="page-header">
+                    <div className="page-header-text">
+                        <h1 className="page-title">User Management</h1>
+                        <p className="page-subtitle">Manage platform access, roles, and user accounts.</p>
+                    </div>
+                    <div className="page-header-actions">
+                        <button 
+                            onClick={handleOpenCreateModal} 
+                            className="auth-button btn-action" 
+                            style={{ gap: '8px' }}
+                        >
+                            <span style={{ fontSize: '18px', fontWeight: 'bold' }}>+</span> Add User
+                        </button>
+                    </div>
                 </div>
                 
                 {errorMessage && (
@@ -262,7 +267,7 @@ const UserManagement = () => {
                                             <td style={{ padding: '15px', fontSize: '13px', verticalAlign: 'middle' }}>{user.role}</td>
                                             <td style={{ padding: '15px', fontSize: '13px', verticalAlign: 'middle' }}>{user.major || 'N/A'}</td>
                                             <td style={{ padding: '15px', verticalAlign: 'middle', textAlign: 'center' }}>
-                                                {/* STATUT CLIQUABLE */}
+                                                {/* CLICKABLE STATUS */}
                                                 <span 
                                                     onClick={() => handleToggleStatus(user)}
                                                     style={{ 
@@ -297,7 +302,7 @@ const UserManagement = () => {
                     )}
                 </div>
 
-                {/* MODALE DE CRÉATION */}
+                {/* CREATION MODAL */}
                 {isCreateModalOpen && (
                     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', zIndex: 9999 }}>
                         <div className="glass-card" style={{ width: '500px', maxWidth: '90%', animation: 'fadeIn 0.3s ease' }}>
@@ -345,7 +350,7 @@ const UserManagement = () => {
                     </div>
                 )}
 
-                {/* MODALE D'ÉDITION */}
+                {/* EDIT MODAL */}
                 {isEditModalOpen && editingUser && (
                     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', zIndex: 9999 }}>
                         <div className="glass-card" style={{ width: '500px', maxWidth: '90%', animation: 'fadeIn 0.3s ease' }}>

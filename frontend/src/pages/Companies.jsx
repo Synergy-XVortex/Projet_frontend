@@ -8,7 +8,7 @@ const Companies = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     
-    // États pour les modales
+    // Modal states
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     
@@ -65,7 +65,7 @@ const Companies = () => {
             try {
                 await CompanyService.deleteCompany(company.siret);
             } catch (err) {
-                alert("Erreur lors de la suppression de l'entreprise.");
+                alert("Error deleting the company.");
                 fetchCompanies();
             }
             setDeletedCompany(null);
@@ -104,7 +104,7 @@ const Companies = () => {
             setEditingCompany(null);
             setIsEditModalOpen(false);
             fetchCompanies();
-        } catch (err) { alert("Erreur lors de la mise à jour de l'entreprise."); }
+        } catch (err) { alert("Error updating the company."); }
     };
 
     const handleOpenCreateModal = () => {
@@ -115,26 +115,25 @@ const Companies = () => {
     const handleCreateCompany = async (e) => {
         e.preventDefault();
         if (formData.siret.length !== 14) {
-            alert("Le SIRET doit contenir exactement 14 caractères.");
+            alert("The SIRET must contain exactly 14 characters.");
             return;
         }
         try {
             await CompanyService.createCompany(formData);
             setIsCreateModalOpen(false);
             fetchCompanies();
-        } catch (err) { alert("Erreur lors de la création. Le SIRET existe peut-être déjà."); }
+        } catch (err) { alert("Error during creation. The SIRET might already exist."); }
     };
 
     return (
         <div className="app-layout">
             <div className="page-container">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', flexWrap: 'wrap', gap: '15px' }}>
-                    <div>
-                        <h1 className="page-title" style={{ marginBottom: '5px' }}>Companies Directory</h1>
-                        <p className="page-subtitle" style={{ margin: 0 }}>Browse partner companies and find your next internship.</p>
+                <div className="page-header">
+                    <div className="page-header-text">
+                        <h1 className="page-title">Companies Directory</h1>
+                        <p className="page-subtitle">Browse partner companies and find your next internship.</p>
                     </div>
-
-                    <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                    <div className="page-header-actions">
                         <div className="search-container">
                             <span className="search-icon">🔍</span>
                             <input 
@@ -146,7 +145,6 @@ const Companies = () => {
                                 style={{ height: '42px', boxSizing: 'border-box' }}
                             />
                         </div>
-                        
                         {userRole !== 'STUDENT' && (
                             <button 
                                 onClick={handleOpenCreateModal} 
@@ -159,7 +157,7 @@ const Companies = () => {
                     </div>
                 </div>
 
-                {/* MODALE DE CRÉATION */}
+                {/* CREATION MODAL */}
                 {isCreateModalOpen && (
                     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', zIndex: 9999 }}>
                         <div className="glass-card" style={{ width: '500px', maxWidth: '90%', animation: 'fadeIn 0.3s ease' }}>
@@ -196,7 +194,7 @@ const Companies = () => {
                     </div>
                 )}
 
-                {/* MODALE D'ÉDITION */}
+                {/* EDIT MODAL */}
                 {isEditModalOpen && editingCompany && (
                     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', zIndex: 9999 }}>
                         <div className="glass-card" style={{ width: '500px', maxWidth: '90%', animation: 'fadeIn 0.3s ease', borderLeft: '4px solid #3b82f6' }}>
@@ -243,7 +241,7 @@ const Companies = () => {
                                 const compName = company.corporateName || company.corporate_name || 'Unknown Company';
                                 const compAddress = company.address || 'No address provided';
                                 const compEmail = company.contactEmail || company.contact_email || 'No email';
-                                const compPhone = company.contactPhone || company.contact_phone || 'No phone provided'; // <-- Ajout du téléphone
+                                const compPhone = company.contactPhone || company.contact_phone || 'No phone provided'; 
                                 const firstLetter = compName.charAt(0).toUpperCase();
 
                                 return (

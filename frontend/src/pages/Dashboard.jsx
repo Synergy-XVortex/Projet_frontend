@@ -13,7 +13,7 @@ const Dashboard = () => {
     const navigate = useNavigate();
     const [userInfo, setUserInfo] = useState({ email: '', role: '' });
     
-    // État pour stocker les vrais chiffres récupérés depuis le backend
+    // State to store real figures fetched from the backend
     const [stats, setStats] = useState({
         totalUsers: 0,
         pendingActivations: 0,
@@ -33,7 +33,7 @@ const Dashboard = () => {
                     role: role 
                 });
 
-                // Déclencher la récupération des données en fonction du rôle
+                // Trigger data fetching based on role
                 fetchDashboardData(role);
 
             } catch (error) {
@@ -43,22 +43,22 @@ const Dashboard = () => {
     }, []);
 
     /**
-     * Fonction pour récupérer les données dynamiques depuis l'API
+     * Function to fetch dynamic data from the API
      */
     const fetchDashboardData = async (role) => {
         setIsStatsLoading(true);
         try {
             if (role === 'ADMINISTRATOR') {
-                // 1. On récupère les utilisateurs en premier
+                // 1. Fetch users first
                 const response = await UserService.getAllUsers();
                 
-                // 2. On isole la requête des entreprises pour éviter l'effet domino
+                // 2. Isolate the companies request to prevent a domino effect
                 let companiesCount = 0;
                 try {
                     companiesCount = await CompanyService.countCompanies();
                 } catch (companyError) {
-                    console.warn("API Entreprises non prête, compteur à 0 par défaut.");
-                    // L'erreur est capturée ici, le reste du code continue de s'exécuter !
+                    console.warn("Companies API not ready, default count to 0.");
+                    // Error is caught here, the rest of the code continues to execute!
                 }
 
                 if (Array.isArray(response.data)) {
@@ -71,14 +71,14 @@ const Dashboard = () => {
                         ...prev,
                         totalUsers: total,
                         pendingActivations: pending,
-                        registeredCompanies: companiesCount // Sera 0 si l'API échoue, ou le vrai chiffre si elle marche
+                        registeredCompanies: companiesCount // Will be 0 if API fails, or the real figure if it works
                     }));
                 }
             }
-            // Autres rôles...
+            // Other roles...
             
         } catch (error) {
-            console.error("Erreur majeure lors de la récupération des utilisateurs:", error);
+            console.error("Major error while fetching users:", error);
         } finally {
             setIsStatsLoading(false);
         }
@@ -94,7 +94,7 @@ const Dashboard = () => {
     const renderAdminDashboard = () => (
         <>
             <div className="stats-grid">
-                {/* 1. Carte Total Users (Contour bleu via la classe 'highlight') */}
+                {/* 1. Total Users Card (Blue border via 'highlight' class) */}
                 <div className="stats-card highlight">
                     <span className="stats-icon">👥</span>
                     <div>
@@ -105,7 +105,7 @@ const Dashboard = () => {
                     </div>
                 </div>
                 
-                {/* 2. Carte Registered Companies (Nouveau contour émeraude/vert) */}
+                {/* 2. Registered Companies Card (Emerald/green border) */}
                 <div className="stats-card" style={{ borderColor: '#10b981' }}>
                     <span className="stats-icon">🏢</span>
                     <div>
@@ -116,7 +116,7 @@ const Dashboard = () => {
                     </div>
                 </div>
                 
-                {/* 3. Carte Pending Activations (Nouveau contour blanc visible si 0, rouge clair si > 0) */}
+                {/* 3. Pending Activations Card (White border if 0, light red if > 0) */}
                 <div className="stats-card" style={{ borderColor: stats.pendingActivations > 0 ? '#fca5a5' : 'rgba(255, 255, 255, 0.4)' }}>
                     <span className="stats-icon">⚠️</span>
                     <div>
@@ -133,7 +133,7 @@ const Dashboard = () => {
                 <p>Manage platform settings and user access.</p>
                 <button 
                     onClick={() => navigate('/admin/users')} 
-                    className="auth-button" 
+                    className="auth-button btn-action" 
                     style={{ width: 'auto', padding: '10px 20px', marginTop: '15px' }}
                 >
                     Go to User Management
@@ -173,7 +173,7 @@ const Dashboard = () => {
                 </ul>
                 <button 
                     onClick={() => navigate('/companies')} 
-                    className="auth-button" 
+                    className="auth-button btn-action" 
                     style={{ width: 'auto', padding: '10px 20px', marginTop: '15px' }}
                 >
                     Browse Companies
@@ -227,8 +227,12 @@ const Dashboard = () => {
     return (
         <div className="app-layout">
             <div className="page-container">
-                <h1 className="page-title">Welcome back!</h1>
-                <p className="page-subtitle">Logged in as: <strong>{userInfo.email}</strong> ({userInfo.role})</p>
+                <div className="page-header">
+                    <div className="page-header-text">
+                        <h1 className="page-title">Welcome back!</h1>
+                        <p className="page-subtitle">Logged in as: <strong>{userInfo.email}</strong> ({userInfo.role})</p>
+                    </div>
+                </div>
 
                 {/* Conditional Rendering based on Role */}
                 {userInfo.role === 'ADMINISTRATOR' && renderAdminDashboard()}

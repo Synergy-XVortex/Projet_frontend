@@ -110,7 +110,7 @@ const Internships = () => {
                 await InternshipService.deleteInternship(internship.id);
             } catch (err) {
                 console.error(err);
-                alert("Erreur lors de la suppression. Le stage est peut-être lié à d'autres données.");
+                alert("Error during deletion. The internship might be linked to other data.");
                 fetchInternships(); 
             }
             setDeletedInternship(null);
@@ -141,8 +141,12 @@ const Internships = () => {
     return (
         <div className="app-layout">
             <div className="page-container">
-                <h1 className="page-title">{userRole === 'STUDENT' ? 'My Internship' : 'Internship Management'}</h1>
-                <p className="page-subtitle">{userRole === 'STUDENT' ? 'Track your internship progress.' : 'Track, monitor, and validate student internship life cycles.'}</p>
+                <div className="page-header">
+                    <div className="page-header-text">
+                        <h1 className="page-title">{userRole === 'STUDENT' ? 'My Internship' : 'Internship Management'}</h1>
+                        <p className="page-subtitle">{userRole === 'STUDENT' ? 'Track your internship progress.' : 'Track, monitor, and validate student internship life cycles.'}</p>
+                    </div>
+                </div>
 
                 {userRole !== 'STUDENT' && (
                     <div className="controls-container">

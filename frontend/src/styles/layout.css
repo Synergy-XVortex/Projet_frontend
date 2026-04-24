@@ -21,20 +21,39 @@
 }
 
 /* =========================================
-   2. TYPOGRAPHY
+   2. TYPOGRAPHY & HEADERS
    ========================================= */
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start; /* Aligns the button with the top of the title */
+    margin-bottom: 30px;
+}
+
+.page-header-text {
+    display: flex;
+    flex-direction: column;
+}
 
 .page-title {
     font-size: 28px;
     font-weight: 700;
     color: #ffffff;
-    margin-bottom: 10px;
+    margin: 0 0 5px 0; /* Unifies spacing below title */
 }
 
 .page-subtitle {
     font-size: 15px;
     color: rgba(255, 255, 255, 0.7);
-    margin-bottom: 30px;
+    margin: 0;
+}
+
+.page-header-actions {
+    display: flex;
+    gap: 15px;
+    align-items: flex-start;
+    margin-top: 2px; /* Slight adjustment for perfect horizontal alignment with text baseline */
 }
 
 /* =========================================
