@@ -30,6 +30,22 @@ class InternshipService {
             headers: { Authorization: `Bearer ${token}` }
         });
     }
+
+    // Créer un stage
+    createInternship(internshipData) {
+        const token = localStorage.getItem('jwt_token');
+        return axios.post(API_URL, internshipData, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+    }
+
+    // Mettre à jour un stage existant (Modification totale)
+    updateInternship(id, internshipData) {
+        const token = localStorage.getItem('jwt_token');
+        return axios.put(`${API_URL}/${id}`, internshipData, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+    }
 }
 
 export default new InternshipService();

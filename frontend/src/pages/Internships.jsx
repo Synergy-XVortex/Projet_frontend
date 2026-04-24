@@ -10,11 +10,28 @@ const Internships = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('ALL');
     const [searchTerm, setSearchTerm] = useState('');
+    const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
 
-    const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+    // Modals
+    const [isFormModalOpen, setIsFormModalOpen] = useState(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+    
     const [selectedInternship, setSelectedInternship] = useState(null);
-    const [updatingStatus, setUpdatingStatus] = useState('');
+    const [formData, setFormData] = useState({
+        id: null, objective: '', startDate: '', durationWeeks: 12, 
+        companySiret: '', studentEmail: '', teacherEmail: ''
+    });
+
+    // Reference Data for Dropdowns
+    const [students, setStudents] = useState([]);
+    const [teachers, setTeachers] = useState([]);
+    const [companies, setCompanies] = useState([]);
+
+    // Quick Add Company State (Updated with email and phone)
+    const [isAddingNewCompany, setIsAddingNewCompany] = useState(false);
+    const [newCompanyData, setNewCompanyData] = useState({ 
+        siret: '', corporateName: '', address: '', contactEmail: '', contactPhone: '' 
+    });
 
     const [details, setDetails] = useState({ student: null, teacher: null, company: null });
     const [isDetailsLoading, setIsDetailsLoading] = useState(false);
@@ -35,6 +52,9 @@ const Internships = () => {
 
     useEffect(() => {
         fetchInternships();
+        if (userRole !== 'STUDENT') {
+            fetchDropdownData();
+        }
     }, []);
 
     const fetchInternships = async () => {
@@ -43,11 +63,26 @@ const Internships = () => {
             const params = userRole === 'STUDENT' ? { studentEmail: userEmail } : {};
             const response = await InternshipService.getAllInternships(params);
             setInternships(response.data || []);
-        } catch (err) {
-            console.error("Failed to load internships", err);
-        } finally {
-            setIsLoading(false);
-        }
+        } catch (err) { console.error("Failed to load internships", err); } 
+        finally { setIsLoading(false); }
+    };
+
+    const fetchDropdownData = async () => {
+        try {
+            const [usersRes, compRes] = await Promise.all([
+                UserService.getAllUsers(), CompanyService.getAllCompanies()
+            ]);
+            const allUsers = usersRes.data || [];
+            setStudents(allUsers.filter(u => u.role === 'STUDENT'));
+            setTeachers(allUsers.filter(u => u.role === 'TEACHER' || u.role === 'ADMINISTRATOR'));
+            setCompanies(compRes.data || []);
+        } catch (error) { console.error("Error loading reference data", error); }
+    };
+
+    const requestSort = (key) => {
+        let direction = 'ascending';
+        if (sortConfig.key === key && sortConfig.direction === 'ascending') direction = 'descending';
+        setSortConfig({ key, direction });
     };
 
     const processedInternships = useMemo(() => {
@@ -57,19 +92,27 @@ const Internships = () => {
             const term = searchTerm.toLowerCase();
             result = result.filter(i => 
                 (i.studentEmail?.toLowerCase().includes(term)) ||
+                (i.teacherEmail?.toLowerCase().includes(term)) ||
                 (i.companySiret?.toLowerCase().includes(term)) ||
                 (i.objective?.toLowerCase().includes(term))
             );
         }
+        if (sortConfig.key !== null) {
+            result.sort((a, b) => {
+                let aValue = String(a[sortConfig.key] || '').toLowerCase();
+                let bValue = String(b[sortConfig.key] || '').toLowerCase();
+                if (aValue < bValue) return sortConfig.direction === 'ascending' ? -1 : 1;
+                if (aValue > bValue) return sortConfig.direction === 'ascending' ? 1 : -1;
+                return 0;
+            });
+        }
         return result;
-    }, [internships, activeTab, searchTerm]);
+    }, [internships, activeTab, searchTerm, sortConfig]);
 
     const handleDetailsClick = async (internship) => {
         setSelectedInternship(internship);
         setIsDetailsModalOpen(true);
         setIsDetailsLoading(true);
-        setDetails({ student: null, teacher: null, company: null });
-
         try {
             const [studentRes, companyRes] = await Promise.all([
                 UserService.getUserByEmail(internship.studentEmail),
@@ -85,32 +128,77 @@ const Internships = () => {
         finally { setIsDetailsLoading(false); }
     };
 
-    const handleUpdateClick = (internship) => {
-        setSelectedInternship(internship);
-        setUpdatingStatus(internship.status);
-        setIsUpdateModalOpen(true);
+    // --- FORM ACTIONS (ADD/EDIT) ---
+    const openCreateModal = () => {
+        setFormData({ id: null, objective: '', startDate: '', durationWeeks: 12, companySiret: '', studentEmail: '', teacherEmail: '' });
+        setIsAddingNewCompany(false);
+        setIsFormModalOpen(true);
     };
 
-    const handleSaveStatus = async () => {
+    const openEditModal = (internship) => {
+        setFormData({
+            id: internship.id,
+            objective: internship.objective || '',
+            startDate: internship.startDate || '',
+            durationWeeks: internship.durationWeeks || 12,
+            companySiret: internship.companySiret || '',
+            studentEmail: internship.studentEmail || '',
+            teacherEmail: internship.teacherEmail || ''
+        });
+        setIsAddingNewCompany(false);
+        setIsFormModalOpen(true);
+    };
+
+    const handleSaveInternship = async (e) => {
+        e.preventDefault();
         try {
-            await InternshipService.updateStatus(selectedInternship.id, updatingStatus);
-            setIsUpdateModalOpen(false);
-            fetchInternships(); 
-        } catch (err) { alert("Error updating internship status."); }
+            if (formData.id) {
+                await InternshipService.updateInternship(formData.id, formData);
+            } else {
+                await InternshipService.createInternship(formData);
+            }
+            setIsFormModalOpen(false);
+            fetchInternships();
+        } catch (err) { alert("Error saving the internship. Check your data."); }
     };
 
+    // --- QUICK ADD COMPANY ---
+    const handleQuickAddCompany = async () => {
+        if (!newCompanyData.siret || !newCompanyData.corporateName) return alert("SIRET and Name required.");
+        try {
+            await CompanyService.createCompany(newCompanyData);
+            setCompanies([...companies, newCompanyData]);
+            setFormData({ ...formData, companySiret: newCompanyData.siret });
+            setIsAddingNewCompany(false);
+            // Reset to empty state
+            setNewCompanyData({ siret: '', corporateName: '', address: '', contactEmail: '', contactPhone: '' });
+        } catch (e) { alert("Failed to add company. SIRET may already exist."); }
+    };
+
+    // --- STATUS DROPDOWN ---
+    const handleStatusDropdownChange = async (internshipId, newStatus) => {
+        const previousInternships = [...internships];
+        setInternships(internships.map(i => i.id === internshipId ? { ...i, status: newStatus } : i));
+        
+        try {
+            await InternshipService.updateStatus(internshipId, newStatus);
+        } catch (err) {
+            alert("Error updating status.");
+            setInternships(previousInternships);
+        }
+    };
+
+    // --- DELETE LOGIC ---
     const handleDeleteClick = (internship) => {
         setInternships(prev => prev.filter(i => i.id !== internship.id));
         setDeletedInternship(internship);
-
         if (deleteTimeoutRef.current) clearTimeout(deleteTimeoutRef.current);
 
         deleteTimeoutRef.current = setTimeout(async () => {
             try {
                 await InternshipService.deleteInternship(internship.id);
             } catch (err) {
-                console.error(err);
-                alert("Error during deletion. The internship might be linked to other data.");
+                alert("Error during deletion.");
                 fetchInternships(); 
             }
             setDeletedInternship(null);
@@ -146,6 +234,13 @@ const Internships = () => {
                         <h1 className="page-title">{userRole === 'STUDENT' ? 'My Internship' : 'Internship Management'}</h1>
                         <p className="page-subtitle">{userRole === 'STUDENT' ? 'Track your internship progress.' : 'Track, monitor, and validate student internship life cycles.'}</p>
                     </div>
+                    {userRole !== 'STUDENT' && (
+                        <div className="page-header-actions">
+                            <button onClick={openCreateModal} className="auth-button btn-action" style={{ gap: '8px' }}>
+                                <span style={{ fontSize: '18px', fontWeight: 'bold' }}>+</span> Add Internship
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {userRole !== 'STUDENT' && (
@@ -170,10 +265,10 @@ const Internships = () => {
                             <table style={{ width: '100%', minWidth: '1000px', borderCollapse: 'collapse', textAlign: 'left', tableLayout: 'fixed' }}>
                                 <thead style={{ background: 'rgba(0,0,0,0.3)', color: '#fff', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                     <tr>
-                                        <th style={{ width: '30%', padding: '15px' }}>Student / Objective</th>
-                                        <th style={{ width: '20%', padding: '15px' }}>Company (SIRET)</th>
-                                        <th style={{ width: '15%', padding: '15px' }}>Start Date</th>
-                                        <th style={{ width: '10%', padding: '15px' }}>Status</th>
+                                        <th style={{ width: '25%', padding: '15px' }} className="sortable-header" onClick={() => requestSort('studentEmail')}>Student {sortConfig.key === 'studentEmail' ? (sortConfig.direction === 'ascending' ? '↑' : '↓') : '↕'}</th>
+                                        <th style={{ width: '20%', padding: '15px' }} className="sortable-header" onClick={() => requestSort('teacherEmail')}>Teacher {sortConfig.key === 'teacherEmail' ? (sortConfig.direction === 'ascending' ? '↑' : '↓') : '↕'}</th>
+                                        <th style={{ width: '20%', padding: '15px' }} className="sortable-header" onClick={() => requestSort('companySiret')}>Company {sortConfig.key === 'companySiret' ? (sortConfig.direction === 'ascending' ? '↑' : '↓') : '↕'}</th>
+                                        <th style={{ width: '10%', padding: '15px' }} className="sortable-header" onClick={() => requestSort('status')}>Status {sortConfig.key === 'status' ? (sortConfig.direction === 'ascending' ? '↑' : '↓') : '↕'}</th>
                                         <th style={{ width: '25%', padding: '15px', textAlign: 'center' }}>Actions</th>
                                     </tr>
                                 </thead>
@@ -190,26 +285,45 @@ const Internships = () => {
                                             return (
                                                 <tr key={internship.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                                                     <td style={{ padding: '15px', verticalAlign: 'middle' }}>
-                                                        <div style={{ fontWeight: '600' }}>{internship.studentEmail || 'Pending Assignment'}</div>
-                                                        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginTop: '4px' }}>{internship.objective?.substring(0,40)}...</div>
+                                                        <div style={{ fontWeight: '600' }}>{internship.studentEmail || 'Not Assigned'}</div>
+                                                        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginTop: '4px' }}>{internship.objective?.substring(0,30)}...</div>
                                                     </td>
-                                                    <td style={{ padding: '15px', fontSize: '13px', verticalAlign: 'middle' }}><code>{internship.companySiret}</code></td>
-                                                    <td style={{ padding: '15px', fontSize: '13px', verticalAlign: 'middle' }}>{new Date(internship.startDate).toLocaleDateString()}</td>
+                                                    <td style={{ padding: '15px', fontSize: '13px', verticalAlign: 'middle' }}>{internship.teacherEmail || 'Not Assigned'}</td>
+                                                    <td style={{ padding: '15px', fontSize: '13px', verticalAlign: 'middle', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={internship.companySiret}>
+                                                        {companies.find(c => c.siret === internship.companySiret)?.corporateName || internship.companySiret}
+                                                    </td>
                                                     <td style={{ padding: '15px', verticalAlign: 'middle' }}>
-                                                        <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11px', color: badge.color, background: badge.bg, fontWeight: 'bold', border: `1px solid ${badge.border}` }}>
-                                                            {internship.status}
-                                                        </span>
+                                                        {userRole === 'STUDENT' ? (
+                                                            <span style={{ 
+                                                                padding: '4px 10px', borderRadius: '20px', fontSize: '11px', color: badge.color, 
+                                                                background: badge.bg, fontWeight: 'bold', border: `1px solid ${badge.border}`
+                                                            }}>
+                                                                {internship.status}
+                                                            </span>
+                                                        ) : (
+                                                            <select
+                                                                value={internship.status}
+                                                                onChange={(e) => handleStatusDropdownChange(internship.id, e.target.value)}
+                                                                style={{ 
+                                                                    padding: '4px 8px', borderRadius: '20px', fontSize: '11px', color: badge.color, 
+                                                                    background: badge.bg, fontWeight: 'bold', border: `1px solid ${badge.border}`,
+                                                                    cursor: 'pointer', outline: 'none', appearance: 'auto'
+                                                                }}
+                                                            >
+                                                                <option value="ONGOING" style={{color: '#fff', background: '#1f2937'}}>ONGOING</option>
+                                                                <option value="COMPLETED" style={{color: '#fff', background: '#1f2937'}}>COMPLETED</option>
+                                                                <option value="VALIDATED" style={{color: '#fff', background: '#1f2937'}}>VALIDATED</option>
+                                                                <option value="REJECTED" style={{color: '#fff', background: '#1f2937'}}>REJECTED</option>
+                                                            </select>
+                                                        )}
                                                     </td>
                                                     <td style={{ padding: '15px', verticalAlign: 'middle' }}>
                                                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
                                                             <button onClick={() => handleDetailsClick(internship)} className="logout-button btn-action">Details</button>
-                                                            
                                                             {userRole !== 'STUDENT' && (
                                                                 <>
-                                                                    <button onClick={() => handleUpdateClick(internship)} className="auth-button btn-action">Update</button>
-                                                                    <button onClick={() => handleDeleteClick(internship)} className="logout-button btn-action" style={{ borderColor: '#ef4444', color: '#ef4444' }}>
-                                                                        Delete
-                                                                    </button>
+                                                                    <button onClick={() => openEditModal(internship)} className="auth-button btn-action">Edit</button>
+                                                                    <button onClick={() => handleDeleteClick(internship)} className="logout-button btn-action" style={{ borderColor: '#ef4444', color: '#ef4444' }}>Delete</button>
                                                                 </>
                                                             )}
                                                         </div>
@@ -224,6 +338,89 @@ const Internships = () => {
                     )}
                 </div>
 
+                {/* --- ADD/EDIT MODAL --- */}
+                {isFormModalOpen && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', zIndex: 9999 }}>
+                        <div className="glass-card" style={{ width: '600px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto', animation: 'fadeIn 0.3s ease' }}>
+                            <h3 style={{ marginBottom: '20px', marginTop: 0 }}>{formData.id ? 'Edit Internship' : 'Register New Internship'}</h3>
+                            
+                            <form onSubmit={handleSaveInternship} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                <div style={{ display: 'flex', gap: '15px' }}>
+                                    <div className="auth-input-group" style={{ flex: 1, marginBottom: 0 }}>
+                                        <label className="auth-label">Student</label>
+                                        <select className="auth-input" value={formData.studentEmail} onChange={e => setFormData({...formData, studentEmail: e.target.value})}>
+                                            <option value="">-- Select Student --</option>
+                                            {students.map(s => <option key={s.email} value={s.email}>{s.firstName} {s.lastName}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="auth-input-group" style={{ flex: 1, marginBottom: 0 }}>
+                                        <label className="auth-label">Supervising Teacher</label>
+                                        <select className="auth-input" value={formData.teacherEmail} onChange={e => setFormData({...formData, teacherEmail: e.target.value})}>
+                                            <option value="">-- Select Teacher --</option>
+                                            {teachers.map(t => <option key={t.email} value={t.email}>{t.firstName} {t.lastName}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="auth-input-group" style={{ marginBottom: 0 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <label className="auth-label">Company</label>
+                                        {!isAddingNewCompany && <button type="button" onClick={() => setIsAddingNewCompany(true)} style={{ background: 'none', border: 'none', color: '#3b82f6', fontSize: '12px', cursor: 'pointer' }}>+ Add New Company</button>}
+                                    </div>
+                                    
+                                    {!isAddingNewCompany ? (
+                                        <select className="auth-input" value={formData.companySiret} onChange={e => setFormData({...formData, companySiret: e.target.value})} required>
+                                            <option value="">-- Select Company --</option>
+                                            {companies.map(c => <option key={c.siret} value={c.siret}>{c.corporateName} ({c.siret})</option>)}
+                                        </select>
+                                    ) : (
+                                        <div style={{ background: 'rgba(0,0,0,0.2)', padding: '15px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', marginTop: '5px' }}>
+                                            <div style={{ display: 'flex', gap: '10px' }}>
+                                                <input className="auth-input" placeholder="SIRET (14 digits)" value={newCompanyData.siret} onChange={e => setNewCompanyData({...newCompanyData, siret: e.target.value})} style={{ marginBottom: '10px', flex: 1 }} maxLength={14}/>
+                                                <input className="auth-input" placeholder="Corporate Name" value={newCompanyData.corporateName} onChange={e => setNewCompanyData({...newCompanyData, corporateName: e.target.value})} style={{ marginBottom: '10px', flex: 1 }} />
+                                            </div>
+                                            <input className="auth-input" placeholder="Address" value={newCompanyData.address} onChange={e => setNewCompanyData({...newCompanyData, address: e.target.value})} style={{ marginBottom: '10px' }} />
+                                            
+                                            {/* NEW FIELDS: Email and Phone */}
+                                            <div style={{ display: 'flex', gap: '10px' }}>
+                                                <input className="auth-input" type="email" placeholder="Contact Email" value={newCompanyData.contactEmail} onChange={e => setNewCompanyData({...newCompanyData, contactEmail: e.target.value})} style={{ marginBottom: '10px', flex: 1 }} />
+                                                <input className="auth-input" placeholder="Contact Phone" value={newCompanyData.contactPhone} onChange={e => setNewCompanyData({...newCompanyData, contactPhone: e.target.value})} style={{ marginBottom: '10px', flex: 1 }} />
+                                            </div>
+                                            
+                                            <div style={{ display: 'flex', gap: '10px' }}>
+                                                <button type="button" onClick={handleQuickAddCompany} className="auth-button btn-action" style={{ padding: '0 10px', height: '35px' }}>Save Company</button>
+                                                <button type="button" onClick={() => setIsAddingNewCompany(false)} className="logout-button btn-action" style={{ padding: '0 10px', height: '35px' }}>Cancel</button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div style={{ display: 'flex', gap: '15px' }}>
+                                    <div className="auth-input-group" style={{ flex: 1, marginBottom: 0 }}>
+                                        <label className="auth-label">Start Date</label>
+                                        <input type="date" className="auth-input" value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} required />
+                                    </div>
+                                    <div className="auth-input-group" style={{ flex: 1, marginBottom: 0 }}>
+                                        <label className="auth-label">Duration (Weeks)</label>
+                                        <input type="number" className="auth-input" value={formData.durationWeeks} onChange={e => setFormData({...formData, durationWeeks: e.target.value})} required min="1" />
+                                    </div>
+                                </div>
+
+                                <div className="auth-input-group" style={{ marginBottom: 0 }}>
+                                    <label className="auth-label">Internship Objective</label>
+                                    <textarea className="auth-input" value={formData.objective} onChange={e => setFormData({...formData, objective: e.target.value})} style={{ height: '80px', resize: 'none' }} required />
+                                </div>
+
+                                <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
+                                    <button type="button" onClick={() => setIsFormModalOpen(false)} className="logout-button btn-action">Cancel</button>
+                                    <button type="submit" className="auth-button btn-action">Save Internship</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+
+                {/* --- DETAILS MODAL --- */}
                 {isDetailsModalOpen && (
                     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', zIndex: 9999 }}>
                         <div className="glass-card" style={{ width: '650px', maxWidth: '95%', padding: '40px', animation: 'fadeIn 0.3s ease' }}>
@@ -264,24 +461,7 @@ const Internships = () => {
                     </div>
                 )}
 
-                {isUpdateModalOpen && (
-                    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', zIndex: 9999 }}>
-                        <div className="glass-card" style={{ width: '400px', textAlign: 'center', animation: 'fadeIn 0.3s ease' }}>
-                            <h3 style={{ marginBottom: '20px' }}>Update Status</h3>
-                            <select className="auth-input" value={updatingStatus} onChange={(e) => setUpdatingStatus(e.target.value)} style={{ marginBottom: '25px', width: '100%' }}>
-                                <option value="ONGOING">ONGOING</option>
-                                <option value="COMPLETED">COMPLETED</option>
-                                <option value="VALIDATED">VALIDATED</option>
-                                <option value="REJECTED">REJECTED</option>
-                            </select>
-                            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                                <button onClick={handleSaveStatus} className="auth-button btn-action">Save</button>
-                                <button onClick={() => setIsUpdateModalOpen(false)} className="logout-button btn-action">Cancel</button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
+                {/* UNDO DELETE TOAST */}
                 {deletedInternship && (
                     <div style={{
                         position: 'fixed', bottom: '30px', left: '50%', transform: 'translateX(-50%)',
@@ -293,8 +473,8 @@ const Internships = () => {
                         <button onClick={handleUndoDelete} style={{ background: 'transparent', border: 'none', color: '#3b82f6', fontWeight: 'bold', cursor: 'pointer', padding: 0 }}>UNDO</button>
                     </div>
                 )}
-                <style>{`@keyframes slideUp { from { bottom: -50px; opacity: 0; } to { bottom: 30px; opacity: 1; } }`}</style>
             </div>
+            <style>{`@keyframes slideUp { from { bottom: -50px; opacity: 0; } to { bottom: 30px; opacity: 1; } }`}</style>
         </div>
     );
 };
