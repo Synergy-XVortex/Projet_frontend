@@ -46,6 +46,28 @@ class InternshipService {
             headers: { Authorization: `Bearer ${token}` }
         });
     }
+    
+    // Récupérer le rapport et la note
+    getReport(internshipId) {
+        const token = localStorage.getItem('jwt_token');
+        return axios.get(`${API_URL}/${internshipId}/report`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+    }
+
+    // Uploader le PDF
+    uploadReport(internshipId, file) {
+        const token = localStorage.getItem('jwt_token');
+        const formData = new FormData();
+        formData.append('file', file); // Le nom 'file' correspond au @RequestParam du Backend
+        
+        return axios.post(`${API_URL}/${internshipId}/report`, formData, {
+            headers: { 
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'multipart/form-data' // Crucial pour l'envoi de fichiers
+            }
+        });
+    }
 }
 
 export default new InternshipService();

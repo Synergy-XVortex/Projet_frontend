@@ -5,6 +5,12 @@ const UserService = {
         return api.get('/users');
     },
 
+    // --- NOUVELLE MÉTHODE : Récupérer un utilisateur spécifique ---
+    getUserByEmail: (email) => {
+        if (!email) return Promise.reject("Missing User Email");
+        return api.get(`/users/${email}`);
+    },
+
     updateUser: (email, userData) => {
         if (!email) return Promise.reject("Missing User Email");
         return api.put(`/users/${email}`, userData);
@@ -25,7 +31,6 @@ const UserService = {
         }
     },
 
-    // NOUVELLE MÉTHODE : Suppression
     deleteUser: (email) => {
         return api.delete(`/users/${email}`);
     }

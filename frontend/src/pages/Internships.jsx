@@ -22,19 +22,20 @@ const Internships = () => {
         companySiret: '', studentEmail: '', teacherEmail: ''
     });
 
-    // Reference Data for Dropdowns
     const [students, setStudents] = useState([]);
     const [teachers, setTeachers] = useState([]);
     const [companies, setCompanies] = useState([]);
 
-    // Quick Add Company State (Updated with email and phone)
     const [isAddingNewCompany, setIsAddingNewCompany] = useState(false);
     const [newCompanyData, setNewCompanyData] = useState({ 
         siret: '', corporateName: '', address: '', contactEmail: '', contactPhone: '' 
     });
 
-    const [details, setDetails] = useState({ student: null, teacher: null, company: null });
+    // --- NOUVEAUX ÉTATS POUR LE RAPPORT ---
+    const [details, setDetails] = useState({ student: null, teacher: null, company: null, report: null });
     const [isDetailsLoading, setIsDetailsLoading] = useState(false);
+    const [uploadFile, setUploadFile] = useState(null);
+    const [isUploading, setIsUploading] = useState(false);
 
     const [deletedInternship, setDeletedInternship] = useState(null);
     const deleteTimeoutRef = useRef(null);
@@ -111,6 +112,7 @@ const Internships = () => {
 
     const handleDetailsClick = async (internship) => {
         setSelectedInternship(internship);
+        setUploadFile(null); // Reset file input
         setIsDetailsModalOpen(true);
         setIsDetailsLoading(true);
         try {
@@ -123,12 +125,40 @@ const Internships = () => {
                 const teacherRes = await UserService.getUserByEmail(internship.teacherEmail);
                 teacherData = teacherRes.data;
             }
-            setDetails({ student: studentRes.data, company: companyRes.data, teacher: teacherData });
+            
+            // Récupération du rapport
+            let reportData = null;
+            try {
+                const reportRes = await InternshipService.getReport(internship.id);
+                reportData = reportRes.data;
+            } catch(e) {
+                // 404 Expected si aucun rapport n'a encore été uplaodé
+            }
+
+            setDetails({ student: studentRes.data, company: companyRes.data, teacher: teacherData, report: reportData });
         } catch (err) { console.error("Error loading details", err); } 
         finally { setIsDetailsLoading(false); }
     };
 
-    // --- FORM ACTIONS (ADD/EDIT) ---
+    // --- UPLOAD LOGIC ---
+    const handleUploadReport = async () => {
+        if (!uploadFile) return;
+        setIsUploading(true);
+        try {
+            await InternshipService.uploadReport(selectedInternship.id, uploadFile);
+            
+            // Rafraîchir les données du rapport après l'upload
+            const reportRes = await InternshipService.getReport(selectedInternship.id);
+            setDetails(prev => ({ ...prev, report: reportRes.data }));
+            setUploadFile(null);
+            alert("Report successfully uploaded!");
+        } catch (err) {
+            alert("Error uploading report. Please try again.");
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
     const openCreateModal = () => {
         setFormData({ id: null, objective: '', startDate: '', durationWeeks: 12, companySiret: '', studentEmail: '', teacherEmail: '' });
         setIsAddingNewCompany(false);
@@ -137,13 +167,9 @@ const Internships = () => {
 
     const openEditModal = (internship) => {
         setFormData({
-            id: internship.id,
-            objective: internship.objective || '',
-            startDate: internship.startDate || '',
-            durationWeeks: internship.durationWeeks || 12,
-            companySiret: internship.companySiret || '',
-            studentEmail: internship.studentEmail || '',
-            teacherEmail: internship.teacherEmail || ''
+            id: internship.id, objective: internship.objective || '', startDate: internship.startDate || '',
+            durationWeeks: internship.durationWeeks || 12, companySiret: internship.companySiret || '',
+            studentEmail: internship.studentEmail || '', teacherEmail: internship.teacherEmail || ''
         });
         setIsAddingNewCompany(false);
         setIsFormModalOpen(true);
@@ -152,17 +178,13 @@ const Internships = () => {
     const handleSaveInternship = async (e) => {
         e.preventDefault();
         try {
-            if (formData.id) {
-                await InternshipService.updateInternship(formData.id, formData);
-            } else {
-                await InternshipService.createInternship(formData);
-            }
+            if (formData.id) { await InternshipService.updateInternship(formData.id, formData); } 
+            else { await InternshipService.createInternship(formData); }
             setIsFormModalOpen(false);
             fetchInternships();
         } catch (err) { alert("Error saving the internship. Check your data."); }
     };
 
-    // --- QUICK ADD COMPANY ---
     const handleQuickAddCompany = async () => {
         if (!newCompanyData.siret || !newCompanyData.corporateName) return alert("SIRET and Name required.");
         try {
@@ -170,50 +192,31 @@ const Internships = () => {
             setCompanies([...companies, newCompanyData]);
             setFormData({ ...formData, companySiret: newCompanyData.siret });
             setIsAddingNewCompany(false);
-            // Reset to empty state
             setNewCompanyData({ siret: '', corporateName: '', address: '', contactEmail: '', contactPhone: '' });
         } catch (e) { alert("Failed to add company. SIRET may already exist."); }
     };
 
-    // --- STATUS DROPDOWN ---
     const handleStatusDropdownChange = async (internshipId, newStatus) => {
         const previousInternships = [...internships];
         setInternships(internships.map(i => i.id === internshipId ? { ...i, status: newStatus } : i));
-        
-        try {
-            await InternshipService.updateStatus(internshipId, newStatus);
-        } catch (err) {
-            alert("Error updating status.");
-            setInternships(previousInternships);
-        }
+        try { await InternshipService.updateStatus(internshipId, newStatus); } 
+        catch (err) { alert("Error updating status."); setInternships(previousInternships); }
     };
 
-    // --- DELETE LOGIC ---
     const handleDeleteClick = (internship) => {
         setInternships(prev => prev.filter(i => i.id !== internship.id));
         setDeletedInternship(internship);
         if (deleteTimeoutRef.current) clearTimeout(deleteTimeoutRef.current);
-
         deleteTimeoutRef.current = setTimeout(async () => {
-            try {
-                await InternshipService.deleteInternship(internship.id);
-            } catch (err) {
-                alert("Error during deletion.");
-                fetchInternships(); 
-            }
+            try { await InternshipService.deleteInternship(internship.id); } 
+            catch (err) { alert("Error during deletion."); fetchInternships(); }
             setDeletedInternship(null);
         }, 5000);
     };
 
     const handleUndoDelete = () => {
-        if (deleteTimeoutRef.current) {
-            clearTimeout(deleteTimeoutRef.current);
-            deleteTimeoutRef.current = null;
-        }
-        if (deletedInternship) {
-            setInternships(prev => [...prev, deletedInternship]);
-            setDeletedInternship(null);
-        }
+        if (deleteTimeoutRef.current) { clearTimeout(deleteTimeoutRef.current); deleteTimeoutRef.current = null; }
+        if (deletedInternship) { setInternships(prev => [...prev, deletedInternship]); setDeletedInternship(null); }
     };
 
     const getStatusBadgeStyle = (status) => {
@@ -381,7 +384,6 @@ const Internships = () => {
                                             </div>
                                             <input className="auth-input" placeholder="Address" value={newCompanyData.address} onChange={e => setNewCompanyData({...newCompanyData, address: e.target.value})} style={{ marginBottom: '10px' }} />
                                             
-                                            {/* NEW FIELDS: Email and Phone */}
                                             <div style={{ display: 'flex', gap: '10px' }}>
                                                 <input className="auth-input" type="email" placeholder="Contact Email" value={newCompanyData.contactEmail} onChange={e => setNewCompanyData({...newCompanyData, contactEmail: e.target.value})} style={{ marginBottom: '10px', flex: 1 }} />
                                                 <input className="auth-input" placeholder="Contact Phone" value={newCompanyData.contactPhone} onChange={e => setNewCompanyData({...newCompanyData, contactPhone: e.target.value})} style={{ marginBottom: '10px', flex: 1 }} />
@@ -420,10 +422,10 @@ const Internships = () => {
                     </div>
                 )}
 
-                {/* --- DETAILS MODAL --- */}
+                {/* --- DETAILS MODAL WITH REPORT LOGIC --- */}
                 {isDetailsModalOpen && (
                     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', zIndex: 9999 }}>
-                        <div className="glass-card" style={{ width: '650px', maxWidth: '95%', padding: '40px', animation: 'fadeIn 0.3s ease' }}>
+                        <div className="glass-card" style={{ width: '650px', maxWidth: '95%', padding: '40px', maxHeight: '90vh', overflowY: 'auto', animation: 'fadeIn 0.3s ease' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '25px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '15px' }}>
                                 <h2 style={{ margin: 0 }}>Internship File #{selectedInternship?.id}</h2>
                                 <button onClick={() => setIsDetailsModalOpen(false)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '20px' }}>✖</button>
@@ -449,9 +451,55 @@ const Internships = () => {
                                             <p>Assigned Tutor: <strong>{details.teacher.firstName} {details.teacher.lastName}</strong> ({details.teacher.email})</p>
                                         ) : <p style={{ opacity: 0.5, fontStyle: 'italic' }}>No teacher assigned yet.</p>}
                                     </div>
-                                    <div style={{ gridColumn: 'span 2', marginTop: '15px' }}>
+                                    
+                                    {/* SECTION RAPPORT & ÉVALUATION */}
+                                    <div style={{ gridColumn: 'span 2', background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '12px' }}>
+                                        <h4 style={{ color: '#a855f7', marginBottom: '12px', marginTop: 0 }}>📄 Final Report & Evaluation</h4>
+                                        
+                                        {details.report ? (
+                                            <div>
+                                                <p style={{ marginBottom: '5px' }}><strong>Uploaded File:</strong> {details.report.fileName}</p>
+                                                <p style={{ fontSize: '12px', opacity: 0.7, margin: 0 }}>Submitted on: {new Date(details.report.submissionDate).toLocaleString()}</p>
+                                                
+                                                {details.report.evaluation ? (
+                                                    <div style={{ marginTop: '15px', padding: '15px', background: 'rgba(34, 197, 94, 0.1)', borderLeft: '4px solid #22c55e', borderRadius: '4px' }}>
+                                                        <p style={{ margin: '0 0 10px 0', fontSize: '18px' }}><strong>Grade: {details.report.evaluation.grade} / 20</strong></p>
+                                                        <p style={{ margin: 0, fontStyle: 'italic', opacity: 0.9 }}>"{details.report.evaluation.comment}"</p>
+                                                    </div>
+                                                ) : (
+                                                    <p style={{ marginTop: '15px', color: '#fcd34d', fontWeight: 'bold' }}>⏳ Report submitted. Waiting for teacher evaluation.</p>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div>
+                                                <p style={{ opacity: 0.7, marginBottom: '15px' }}>No report uploaded yet.</p>
+                                                
+                                                {/* Seul l'étudiant peut voir l'input d'upload */}
+                                                {userRole === 'STUDENT' && (
+                                                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                                        <input 
+                                                            type="file" 
+                                                            accept=".pdf"
+                                                            onChange={(e) => setUploadFile(e.target.files[0])} 
+                                                            style={{ background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '6px', flex: 1, border: '1px solid rgba(255,255,255,0.2)' }}
+                                                        />
+                                                        <button 
+                                                            onClick={handleUploadReport} 
+                                                            className="auth-button btn-action"
+                                                            disabled={!uploadFile || isUploading}
+                                                            style={{ opacity: (!uploadFile || isUploading) ? 0.5 : 1 }}
+                                                        >
+                                                            {isUploading ? 'Uploading...' : 'Upload PDF'}
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div style={{ gridColumn: 'span 2', marginTop: '5px' }}>
                                         <h4 style={{ marginBottom: '8px' }}>📝 Objective</h4>
-                                        <p style={{ fontSize: '14px', lineHeight: '1.6', opacity: 0.8, maxHeight: '150px', overflowY: 'auto' }}>
+                                        <p style={{ fontSize: '14px', lineHeight: '1.6', opacity: 0.8, maxHeight: '150px', overflowY: 'auto', background: 'rgba(0,0,0,0.2)', padding: '15px', borderRadius: '8px' }}>
                                             {selectedInternship?.objective}
                                         </p>
                                     </div>
@@ -461,14 +509,8 @@ const Internships = () => {
                     </div>
                 )}
 
-                {/* UNDO DELETE TOAST */}
                 {deletedInternship && (
-                    <div style={{
-                        position: 'fixed', bottom: '30px', left: '50%', transform: 'translateX(-50%)',
-                        background: '#1f2937', color: '#fff', padding: '12px 24px', borderRadius: '8px',
-                        display: 'flex', alignItems: 'center', gap: '20px', zIndex: 9999, border: '1px solid rgba(255,255,255,0.1)', animation: 'slideUp 0.3s ease',
-                        boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
-                    }}>
+                    <div style={{ position: 'fixed', bottom: '30px', left: '50%', transform: 'translateX(-50%)', background: '#1f2937', color: '#fff', padding: '12px 24px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '20px', zIndex: 9999, border: '1px solid rgba(255,255,255,0.1)', animation: 'slideUp 0.3s ease', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
                         <span>Internship #<strong>{deletedInternship.id}</strong> deleted.</span>
                         <button onClick={handleUndoDelete} style={{ background: 'transparent', border: 'none', color: '#3b82f6', fontWeight: 'bold', cursor: 'pointer', padding: 0 }}>UNDO</button>
                     </div>
