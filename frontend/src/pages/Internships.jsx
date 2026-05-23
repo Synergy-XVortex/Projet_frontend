@@ -300,7 +300,8 @@ const Internships = () => {
                         <p style={{ padding: '30px', textAlign: 'center' }}>Loading internship data...</p>
                     ) : (
                         <div style={{ overflowX: 'auto' }}>
-                            <table style={{ width: '100%', minWidth: '1000px', borderCollapse: 'collapse', textAlign: 'left', tableLayout: 'fixed' }}>
+                            {/* CORRECTION RESPONSIVE : minWidth réduit de 1000px à 768px */}
+                            <table style={{ width: '100%', minWidth: '768px', borderCollapse: 'collapse', textAlign: 'left', tableLayout: 'fixed' }}>
                                 <thead style={{ background: 'rgba(0,0,0,0.3)', color: '#fff', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                     <tr>
                                         <th style={{ width: '25%', padding: '15px' }} className="sortable-header" onClick={() => requestSort('studentEmail')}>Student {sortConfig.key === 'studentEmail' ? (sortConfig.direction === 'ascending' ? '↑' : '↓') : '↕'}</th>
@@ -323,10 +324,10 @@ const Internships = () => {
                                             return (
                                                 <tr key={internship.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                                                     <td style={{ padding: '15px', verticalAlign: 'middle' }}>
-                                                        <div style={{ fontWeight: '600' }}>{internship.studentEmail || 'Not Assigned'}</div>
+                                                        <div style={{ fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{internship.studentEmail || 'Not Assigned'}</div>
                                                         <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginTop: '4px' }}>{internship.objective?.substring(0,30)}...</div>
                                                     </td>
-                                                    <td style={{ padding: '15px', fontSize: '13px', verticalAlign: 'middle' }}>{internship.teacherEmail || 'Not Assigned'}</td>
+                                                    <td style={{ padding: '15px', fontSize: '13px', verticalAlign: 'middle', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{internship.teacherEmail || 'Not Assigned'}</td>
                                                     <td style={{ padding: '15px', fontSize: '13px', verticalAlign: 'middle', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={internship.companySiret}>
                                                         {companies.find(c => c.siret === internship.companySiret)?.corporateName || internship.companySiret}
                                                     </td>
@@ -345,7 +346,7 @@ const Internships = () => {
                                                                 style={{ 
                                                                     padding: '4px 8px', borderRadius: '20px', fontSize: '11px', color: badge.color, 
                                                                     background: badge.bg, fontWeight: 'bold', border: `1px solid ${badge.border}`,
-                                                                    cursor: 'pointer', outline: 'none', appearance: 'auto'
+                                                                    cursor: 'pointer', outline: 'none', appearance: 'auto', maxWidth: '100%'
                                                                 }}
                                                             >
                                                                 <option value="ONGOING" style={{color: '#fff', background: '#1f2937'}}>ONGOING</option>
@@ -356,7 +357,8 @@ const Internships = () => {
                                                         )}
                                                     </td>
                                                     <td style={{ padding: '15px', verticalAlign: 'middle' }}>
-                                                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
+                                                        {/* CORRECTION RESPONSIVE : Ajout de flexWrap: 'wrap' pour empiler les boutons si l'écran est trop petit */}
+                                                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
                                                             <button onClick={() => handleDetailsClick(internship)} className="logout-button btn-action">Details</button>
                                                             {userRole !== 'STUDENT' && (
                                                                 <>
@@ -383,15 +385,15 @@ const Internships = () => {
                             <h3 style={{ marginBottom: '20px', marginTop: 0 }}>{formData.id ? 'Edit Internship' : 'Register New Internship'}</h3>
                             
                             <form onSubmit={handleSaveInternship} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                                <div style={{ display: 'flex', gap: '15px' }}>
-                                    <div className="auth-input-group" style={{ flex: 1, marginBottom: 0 }}>
+                                <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                                    <div className="auth-input-group" style={{ flex: 1, minWidth: '200px', marginBottom: 0 }}>
                                         <label className="auth-label">Student</label>
                                         <select className="auth-input" value={formData.studentEmail} onChange={e => setFormData({...formData, studentEmail: e.target.value})}>
                                             <option value="">-- Select Student --</option>
                                             {students.map(s => <option key={s.email} value={s.email}>{s.firstName} {s.lastName}</option>)}
                                         </select>
                                     </div>
-                                    <div className="auth-input-group" style={{ flex: 1, marginBottom: 0 }}>
+                                    <div className="auth-input-group" style={{ flex: 1, minWidth: '200px', marginBottom: 0 }}>
                                         <label className="auth-label">Supervising Teacher</label>
                                         <select className="auth-input" value={formData.teacherEmail} onChange={e => setFormData({...formData, teacherEmail: e.target.value})}>
                                             <option value="">-- Select Teacher --</option>
@@ -413,15 +415,15 @@ const Internships = () => {
                                         </select>
                                     ) : (
                                         <div style={{ background: 'rgba(0,0,0,0.2)', padding: '15px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', marginTop: '5px' }}>
-                                            <div style={{ display: 'flex', gap: '10px' }}>
-                                                <input className="auth-input" placeholder="SIRET (14 digits)" value={newCompanyData.siret} onChange={e => setNewCompanyData({...newCompanyData, siret: e.target.value})} style={{ marginBottom: '10px', flex: 1 }} maxLength={14}/>
-                                                <input className="auth-input" placeholder="Corporate Name" value={newCompanyData.corporateName} onChange={e => setNewCompanyData({...newCompanyData, corporateName: e.target.value})} style={{ marginBottom: '10px', flex: 1 }} />
+                                            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                                <input className="auth-input" placeholder="SIRET (14 digits)" value={newCompanyData.siret} onChange={e => setNewCompanyData({...newCompanyData, siret: e.target.value})} style={{ marginBottom: '10px', flex: 1, minWidth: '150px' }} maxLength={14}/>
+                                                <input className="auth-input" placeholder="Corporate Name" value={newCompanyData.corporateName} onChange={e => setNewCompanyData({...newCompanyData, corporateName: e.target.value})} style={{ marginBottom: '10px', flex: 1, minWidth: '150px' }} />
                                             </div>
                                             <input className="auth-input" placeholder="Address" value={newCompanyData.address} onChange={e => setNewCompanyData({...newCompanyData, address: e.target.value})} style={{ marginBottom: '10px' }} />
                                             
-                                            <div style={{ display: 'flex', gap: '10px' }}>
-                                                <input className="auth-input" type="email" placeholder="Contact Email" value={newCompanyData.contactEmail} onChange={e => setNewCompanyData({...newCompanyData, contactEmail: e.target.value})} style={{ marginBottom: '10px', flex: 1 }} />
-                                                <input className="auth-input" placeholder="Contact Phone" value={newCompanyData.contactPhone} onChange={e => setNewCompanyData({...newCompanyData, contactPhone: e.target.value})} style={{ marginBottom: '10px', flex: 1 }} />
+                                            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                                <input className="auth-input" type="email" placeholder="Contact Email" value={newCompanyData.contactEmail} onChange={e => setNewCompanyData({...newCompanyData, contactEmail: e.target.value})} style={{ marginBottom: '10px', flex: 1, minWidth: '150px' }} />
+                                                <input className="auth-input" placeholder="Contact Phone" value={newCompanyData.contactPhone} onChange={e => setNewCompanyData({...newCompanyData, contactPhone: e.target.value})} style={{ marginBottom: '10px', flex: 1, minWidth: '150px' }} />
                                             </div>
                                             
                                             <div style={{ display: 'flex', gap: '10px' }}>
@@ -432,12 +434,12 @@ const Internships = () => {
                                     )}
                                 </div>
 
-                                <div style={{ display: 'flex', gap: '15px' }}>
-                                    <div className="auth-input-group" style={{ flex: 1, marginBottom: 0 }}>
+                                <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                                    <div className="auth-input-group" style={{ flex: 1, minWidth: '150px', marginBottom: 0 }}>
                                         <label className="auth-label">Start Date</label>
                                         <input type="date" className="auth-input" value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} required />
                                     </div>
-                                    <div className="auth-input-group" style={{ flex: 1, marginBottom: 0 }}>
+                                    <div className="auth-input-group" style={{ flex: 1, minWidth: '150px', marginBottom: 0 }}>
                                         <label className="auth-label">Duration (Weeks)</label>
                                         <input type="number" className="auth-input" value={formData.durationWeeks} onChange={e => setFormData({...formData, durationWeeks: e.target.value})} required min="1" />
                                     </div>
@@ -467,13 +469,13 @@ const Internships = () => {
                             </div>
 
                             {isDetailsLoading ? <p style={{ textAlign: 'center' }}>Loading detailed data...</p> : (
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', textAlign: 'left' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', textAlign: 'left' }}>
                                     
                                     {/* STUDENT INFO */}
                                     <div style={{ background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
                                         <h4 style={{ color: '#3b82f6', marginBottom: '12px', marginTop: 0 }}>👤 Student</h4>
                                         <p><strong>{details.student?.firstName} {details.student?.lastName}</strong></p>
-                                        <p style={{ fontSize: '12px', opacity: 0.7 }}>{details.student?.email}</p>
+                                        <p style={{ fontSize: '12px', opacity: 0.7, wordBreak: 'break-all' }}>{details.student?.email}</p>
                                         <p style={{ fontSize: '12px' }}>Major: {details.student?.major}</p>
                                     </div>
 
@@ -486,7 +488,7 @@ const Internships = () => {
                                     </div>
 
                                     {/* SUPERVISION INFO */}
-                                    <div style={{ gridColumn: 'span 2', background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '12px' }}>
+                                    <div style={{ gridColumn: '1 / -1', background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '12px' }}>
                                         <h4 style={{ color: '#f59e0b', marginBottom: '12px', marginTop: 0 }}>🎓 Supervision</h4>
                                         {details.teacher ? (
                                             <p>Assigned Tutor: <strong>{details.teacher.firstName} {details.teacher.lastName}</strong> ({details.teacher.email})</p>
@@ -494,13 +496,13 @@ const Internships = () => {
                                     </div>
                                     
                                     {/* REPORT & EVALUATION SECTION */}
-                                    <div style={{ gridColumn: 'span 2', background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '12px' }}>
+                                    <div style={{ gridColumn: '1 / -1', background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '12px' }}>
                                         <h4 style={{ color: '#a855f7', marginBottom: '12px', marginTop: 0 }}>📄 Final Report & Evaluation</h4>
                                         
                                         {details.report ? (
                                             <div style={{ marginBottom: '15px' }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-                                                    <p style={{ margin: 0 }}><strong>Uploaded File:</strong> {details.report.fileName}</p>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px', flexWrap: 'wrap', gap: '10px' }}>
+                                                    <p style={{ margin: 0, wordBreak: 'break-all' }}><strong>Uploaded File:</strong> {details.report.fileName}</p>
                                                     
                                                     <div style={{ display: 'flex', gap: '8px' }}>
                                                         <button 
@@ -540,12 +542,12 @@ const Internships = () => {
 
                                         {/* UPLOAD / REPLACE OPTION: Visible if not yet evaluated */}
                                         {userRole === 'STUDENT' && (!details.report || !details.report.evaluation) && (
-                                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: details.report ? '15px' : '0', paddingTop: details.report ? '15px' : '0', borderTop: details.report ? '1px solid rgba(255,255,255,0.1)' : 'none' }}>
+                                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: details.report ? '15px' : '0', paddingTop: details.report ? '15px' : '0', borderTop: details.report ? '1px solid rgba(255,255,255,0.1)' : 'none', flexWrap: 'wrap' }}>
                                                 <input 
                                                     type="file" 
                                                     accept=".pdf"
                                                     onChange={(e) => setUploadFile(e.target.files[0])} 
-                                                    style={{ background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '6px', flex: 1, border: '1px solid rgba(255,255,255,0.2)' }}
+                                                    style={{ background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '6px', flex: 1, minWidth: '200px', border: '1px solid rgba(255,255,255,0.2)' }}
                                                 />
                                                 <button 
                                                     onClick={handleUploadReport} 
@@ -560,7 +562,7 @@ const Internships = () => {
                                     </div>
 
                                     {/* OBJECTIVE */}
-                                    <div style={{ gridColumn: 'span 2', marginTop: '5px' }}>
+                                    <div style={{ gridColumn: '1 / -1', marginTop: '5px' }}>
                                         <h4 style={{ marginBottom: '8px' }}>📝 Objective</h4>
                                         <p style={{ fontSize: '14px', lineHeight: '1.6', opacity: 0.8, maxHeight: '150px', overflowY: 'auto', background: 'rgba(0,0,0,0.2)', padding: '15px', borderRadius: '8px' }}>
                                             {selectedInternship?.objective}
