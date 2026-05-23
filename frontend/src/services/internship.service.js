@@ -77,6 +77,14 @@ class InternshipService {
             responseType: 'blob' // CRUCIAL POUR LES FICHIERS PDF !
         });
     }
+
+    // Supprimer le PDF (seulement si non noté)
+    deleteReport(internshipId) {
+        const token = localStorage.getItem('jwt_token');
+        return axios.delete(`${API_URL}/${internshipId}/report`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+    }
 }
 
 export default new InternshipService();
