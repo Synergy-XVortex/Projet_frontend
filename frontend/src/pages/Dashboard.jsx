@@ -3,22 +3,23 @@ import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import UserService from '../services/user.service';
 import CompanyService from '../services/company.service';
+import InternshipService from '../services/internship.service'; // <-- AJOUT DE L'IMPORT
 import '../styles/layout.css';
 
-/**
- * Main Dashboard component.
- * Displays different widgets and dynamic statistics based on the user's role.
- */
 const Dashboard = () => {
     const navigate = useNavigate();
     const [userInfo, setUserInfo] = useState({ email: '', role: '' });
     
-    // State to store real figures fetched from the backend
     const [stats, setStats] = useState({
+        // Admin stats
         totalUsers: 0,
         pendingActivations: 0,
         registeredCompanies: 0, 
-        internshipsToValidate: 0 
+        internshipsToValidate: 0,
+        // Student stats
+        studentStatus: 'Searching',
+        studentCompanyName: 'None',
+        hasInternship: false
     });
     const [isStatsLoading, setIsStatsLoading] = useState(true);
 
@@ -28,13 +29,13 @@ const Dashboard = () => {
             try {
                 const decoded = jwtDecode(token);
                 const role = decoded.role;
+                const email = decoded.sub;
                 setUserInfo({ 
-                    email: decoded.sub, 
+                    email: email, 
                     role: role 
                 });
 
-                // Trigger data fetching based on role
-                fetchDashboardData(role);
+                fetchDashboardData(role, email);
 
             } catch (error) {
                 console.error("Invalid token on dashboard");
@@ -42,28 +43,23 @@ const Dashboard = () => {
         }
     }, []);
 
-    /**
-     * Function to fetch dynamic data from the API
-     */
-    const fetchDashboardData = async (role) => {
+    const fetchDashboardData = async (role, email) => {
         setIsStatsLoading(true);
         try {
+            // =====================================
+            // LOGIQUE ADMINISTRATEUR
+            // =====================================
             if (role === 'ADMINISTRATOR') {
-                // 1. Fetch users first
                 const response = await UserService.getAllUsers();
-                
-                // 2. Isolate the companies request to prevent a domino effect
                 let companiesCount = 0;
                 try {
                     companiesCount = await CompanyService.countCompanies();
                 } catch (companyError) {
-                    console.warn("Companies API not ready, default count to 0.");
-                    // Error is caught here, the rest of the code continues to execute!
+                    console.warn("API Entreprises non prête, compteur à 0 par défaut.");
                 }
 
                 if (Array.isArray(response.data)) {
                     const users = response.data;
-                    
                     const total = users.length;
                     const pending = users.filter(user => user.active === false).length;
 
@@ -71,14 +67,47 @@ const Dashboard = () => {
                         ...prev,
                         totalUsers: total,
                         pendingActivations: pending,
-                        registeredCompanies: companiesCount // Will be 0 if API fails, or the real figure if it works
+                        registeredCompanies: companiesCount
                     }));
                 }
             }
-            // Other roles...
+            
+            // =====================================
+            // LOGIQUE ÉTUDIANT
+            // =====================================
+            else if (role === 'STUDENT') {
+                const response = await InternshipService.getAllInternships({ studentEmail: email });
+                
+                if (response.data && response.data.length > 0) {
+                    const myInternship = response.data[0]; // On prend le premier stage de l'étudiant
+                    
+                    // On essaie de récupérer le vrai nom de l'entreprise via le SIRET
+                    let compName = myInternship.companySiret;
+                    try {
+                        const compRes = await CompanyService.getCompanyBySiret(myInternship.companySiret);
+                        compName = compRes.data.corporateName;
+                    } catch (e) {
+                        console.warn("Impossible de récupérer le nom de l'entreprise");
+                    }
+
+                    setStats(prev => ({
+                        ...prev,
+                        studentStatus: myInternship.status,
+                        studentCompanyName: compName,
+                        hasInternship: true
+                    }));
+                } else {
+                    setStats(prev => ({
+                        ...prev,
+                        studentStatus: 'Searching',
+                        studentCompanyName: 'None',
+                        hasInternship: false
+                    }));
+                }
+            }
             
         } catch (error) {
-            console.error("Major error while fetching users:", error);
+            console.error("Erreur lors de la récupération des données du tableau de bord:", error);
         } finally {
             setIsStatsLoading(false);
         }
@@ -88,13 +117,9 @@ const Dashboard = () => {
     // ROLE-SPECIFIC VIEWS
     // =========================================
 
-    /**
-     * View for ADMINISTRATOR
-     */
     const renderAdminDashboard = () => (
         <>
             <div className="stats-grid">
-                {/* 1. Total Users Card (Blue border via 'highlight' class) */}
                 <div className="stats-card highlight">
                     <span className="stats-icon">👥</span>
                     <div>
@@ -105,7 +130,6 @@ const Dashboard = () => {
                     </div>
                 </div>
                 
-                {/* 2. Registered Companies Card (Emerald/green border) */}
                 <div className="stats-card" style={{ borderColor: '#10b981' }}>
                     <span className="stats-icon">🏢</span>
                     <div>
@@ -116,7 +140,6 @@ const Dashboard = () => {
                     </div>
                 </div>
                 
-                {/* 3. Pending Activations Card (White border if 0, light red if > 0) */}
                 <div className="stats-card" style={{ borderColor: stats.pendingActivations > 0 ? '#fca5a5' : 'rgba(255, 255, 255, 0.4)' }}>
                     <span className="stats-icon">⚠️</span>
                     <div>
@@ -134,7 +157,7 @@ const Dashboard = () => {
                 <button 
                     onClick={() => navigate('/admin/users')} 
                     className="auth-button btn-action" 
-                    style={{ width: 'auto', padding: '10px 20px', marginTop: '15px' }}
+                    style={{ width: 'auto', padding: '0 20px', marginTop: '15px' }}
                 >
                     Go to User Management
                 </button>
@@ -142,49 +165,66 @@ const Dashboard = () => {
         </>
     );
 
-    /**
-     * View for STUDENT
-     */
     const renderStudentDashboard = () => (
         <>
             <div className="stats-grid">
-                <div className="stats-card highlight">
+                {/* 1. Statut dynamique du stage */}
+                <div className="stats-card highlight" style={{ borderColor: stats.studentStatus === 'VALIDATED' ? '#10b981' : '#3b82f6' }}>
                     <span className="stats-icon">🎓</span>
                     <div>
                         <span className="stats-label">Internship Status</span>
-                        <span className="stats-value" style={{ fontSize: '18px' }}>Searching</span>
+                        <span className="stats-value" style={{ fontSize: '18px', color: stats.studentStatus === 'VALIDATED' ? '#10b981' : '#fff' }}>
+                            {isStatsLoading ? "..." : stats.studentStatus}
+                        </span>
                     </div>
                 </div>
+                
+                {/* 2. Affichage de l'entreprise assignée */}
                 <div className="stats-card">
-                    <span className="stats-icon">📄</span>
+                    <span className="stats-icon">🏢</span>
                     <div>
-                        <span className="stats-label">Applications Sent</span>
-                        <span className="stats-value">0</span>
+                        <span className="stats-label">Assigned Company</span>
+                        <span className="stats-value" style={{ fontSize: '16px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px', display: 'inline-block' }}>
+                            {isStatsLoading ? "..." : stats.studentCompanyName}
+                        </span>
                     </div>
                 </div>
             </div>
 
             <div className="glass-card" style={{ marginTop: '20px' }}>
-                <h3>Next Steps</h3>
-                <ul style={{ color: 'rgba(255,255,255,0.8)', paddingLeft: '20px', lineHeight: '1.8' }}>
-                    <li>Complete your profile information.</li>
-                    <li>Browse the Companies Directory to find opportunities.</li>
-                    <li>Submit your internship convention for approval.</li>
-                </ul>
-                <button 
-                    onClick={() => navigate('/companies')} 
-                    className="auth-button btn-action" 
-                    style={{ width: 'auto', padding: '10px 20px', marginTop: '15px' }}
-                >
-                    Browse Companies
-                </button>
+                {stats.hasInternship ? (
+                    <>
+                        <h3 style={{ color: '#86efac' }}>You are on track!</h3>
+                        <p>Your internship has been registered. Don't forget to submit your final report before the deadline.</p>
+                        <button 
+                            onClick={() => navigate('/internships')} 
+                            className="auth-button btn-action" 
+                            style={{ width: 'auto', padding: '0 20px', marginTop: '15px' }}
+                        >
+                            View Internship Details
+                        </button>
+                    </>
+                ) : (
+                    <>
+                        <h3>Next Steps</h3>
+                        <ul style={{ color: 'rgba(255,255,255,0.8)', paddingLeft: '20px', lineHeight: '1.8' }}>
+                            <li>Complete your profile information.</li>
+                            <li>Browse the Companies Directory to find opportunities.</li>
+                            <li>Contact your administration to register your internship.</li>
+                        </ul>
+                        <button 
+                            onClick={() => navigate('/companies')} 
+                            className="auth-button btn-action" 
+                            style={{ width: 'auto', padding: '0 20px', marginTop: '15px' }}
+                        >
+                            Browse Companies
+                        </button>
+                    </>
+                )}
             </div>
         </>
     );
 
-    /**
-     * View for TEACHER
-     */
     const renderTeacherDashboard = () => (
         <>
             <div className="stats-grid">
@@ -211,9 +251,6 @@ const Dashboard = () => {
         </>
     );
 
-    /**
-     * View for GUEST (Company Tutor)
-     */
     const renderGuestDashboard = () => (
         <div className="glass-card">
             <h3>Welcome, Company Partner</h3>
