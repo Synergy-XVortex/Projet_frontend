@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const API_URL = 'http://localhost:8080/internships';
+const BASE_URL = 'http://localhost:8080';
 
 /**
  * Service to handle internship-related API calls.
@@ -23,7 +24,6 @@ class InternshipService {
         });
     }
 
-    // À l'intérieur de la classe InternshipService :
     deleteInternship(id) {
         const token = localStorage.getItem('jwt_token');
         return axios.delete(`${API_URL}/${id}`, {
@@ -31,7 +31,7 @@ class InternshipService {
         });
     }
 
-    // Créer un stage
+    // Create a new internship
     createInternship(internshipData) {
         const token = localStorage.getItem('jwt_token');
         return axios.post(API_URL, internshipData, {
@@ -39,15 +39,16 @@ class InternshipService {
         });
     }
 
-    // Mettre à jour un stage existant (Modification totale)
+    // Update existing internship
     updateInternship(id, internshipData) {
         const token = localStorage.getItem('jwt_token');
         return axios.put(`${API_URL}/${id}`, internshipData, {
             headers: { Authorization: `Bearer ${token}` }
         });
     }
+
+    // --- REPORT METHODS ---
     
-    // Récupérer le rapport et la note
     getReport(internshipId) {
         const token = localStorage.getItem('jwt_token');
         return axios.get(`${API_URL}/${internshipId}/report`, {
@@ -55,33 +56,38 @@ class InternshipService {
         });
     }
 
-    // Uploader le PDF
     uploadReport(internshipId, file) {
         const token = localStorage.getItem('jwt_token');
         const formData = new FormData();
-        formData.append('file', file); // Le nom 'file' correspond au @RequestParam du Backend
+        formData.append('file', file); 
         
         return axios.post(`${API_URL}/${internshipId}/report`, formData, {
             headers: { 
                 Authorization: `Bearer ${token}`,
-                'Content-Type': 'multipart/form-data' // Crucial pour l'envoi de fichiers
+                'Content-Type': 'multipart/form-data' 
             }
         });
     }
 
-    // Télécharger/Visualiser le PDF
     downloadReport(fileName) {
         const token = localStorage.getItem('jwt_token');
-        return axios.get(`http://localhost:8080/reports/${encodeURIComponent(fileName)}/download`, {
+        return axios.get(`${BASE_URL}/reports/${encodeURIComponent(fileName)}/download`, {
             headers: { Authorization: `Bearer ${token}` },
-            responseType: 'blob' // CRUCIAL POUR LES FICHIERS PDF !
+            responseType: 'blob' 
         });
     }
 
-    // Supprimer le PDF (seulement si non noté)
     deleteReport(internshipId) {
         const token = localStorage.getItem('jwt_token');
         return axios.delete(`${API_URL}/${internshipId}/report`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+    }
+
+    // --- NOUVELLE MÉTHODE : ÉVALUATION PAR LE PROFESSEUR ---
+    evaluateReport(reportFileName, evaluationData) {
+        const token = localStorage.getItem('jwt_token');
+        return axios.post(`${BASE_URL}/reports/${encodeURIComponent(reportFileName)}/evaluation`, evaluationData, {
             headers: { Authorization: `Bearer ${token}` }
         });
     }

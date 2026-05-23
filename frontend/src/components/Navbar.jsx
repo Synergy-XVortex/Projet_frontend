@@ -4,9 +4,6 @@ import { jwtDecode } from 'jwt-decode';
 import AuthService from '../services/auth.service';
 import '../styles/layout.css';
 
-/**
- * Navigation Bar component with dynamic links based on user roles.
- */
 const Navbar = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -39,6 +36,7 @@ const Navbar = () => {
     };
 
     const getNavLinks = (role) => {
+        // Le lien "My Profile" a été retiré puisque nous avons le bouton flottant !
         const links = [{ path: '/dashboard', label: 'Dashboard' }];
         switch (role) {
             case 'STUDENT':
@@ -53,7 +51,6 @@ const Navbar = () => {
                 links.push({ path: '/companies', label: 'Companies Directory' });
                 break;
             case 'ADMINISTRATOR':
-                // AJOUT : Lien vers la gestion des stages pour l'admin
                 links.push({ path: '/internships', label: 'Internships' });
                 links.push({ path: '/companies', label: 'Companies Directory' });
                 links.push({ path: '/admin/users', label: 'User Management' });
@@ -68,42 +65,22 @@ const Navbar = () => {
 
     return (
         <nav className="navbar">
-            <div 
-                className="navbar-brand" 
-                style={{ cursor: 'pointer' }} 
-                onClick={() => { navigate('/dashboard'); closeMobileMenu(); }}
-            >
+            <div className="navbar-brand" style={{ cursor: 'pointer' }} onClick={() => { navigate('/dashboard'); closeMobileMenu(); }}>
                 Academic<span>Platform</span>
             </div>
 
-            <button 
-                className="mobile-menu-btn" 
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                aria-label="Toggle menu"
-            >
+            <button className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-label="Toggle menu">
                 {isMobileMenuOpen ? '✖' : '☰'}
             </button>
 
             {isMobileMenuOpen && (
-                <div 
-                    className="mobile-overlay" 
-                    onClick={closeMobileMenu}
-                    style={{
-                        position: 'fixed', top: '70px', left: 0, width: '100%', height: '100vh',
-                        background: 'transparent', zIndex: 99
-                    }}
-                />
+                <div className="mobile-overlay" onClick={closeMobileMenu} style={{ position: 'fixed', top: '70px', left: 0, width: '100%', height: '100vh', background: 'transparent', zIndex: 99 }} />
             )}
 
             <div className={`navbar-menu ${isMobileMenuOpen ? 'open' : ''}`} style={{ zIndex: 100 }}>
                 <div className="navbar-links">
                     {navLinks.map((link) => (
-                        <NavLink 
-                            key={link.path} 
-                            to={link.path} 
-                            className={({ isActive }) => isActive ? "nav-link active" : "nav-link"}
-                            onClick={closeMobileMenu}
-                        >
+                        <NavLink key={link.path} to={link.path} className={({ isActive }) => isActive ? "nav-link active" : "nav-link"} onClick={closeMobileMenu}>
                             {link.label}
                         </NavLink>
                     ))}
@@ -112,19 +89,11 @@ const Navbar = () => {
                 <div className="navbar-links user-info-container">
                     <span className="user-info" style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)' }}>
                         <strong style={{ color: '#fff' }}>{userEmail}</strong> 
-                        <span style={{ 
-                            marginLeft: '8px', 
-                            padding: '3px 8px', 
-                            background: 'rgba(255,255,255,0.1)', 
-                            borderRadius: '12px', 
-                            fontSize: '11px' 
-                        }}>
+                        <span style={{ marginLeft: '8px', padding: '3px 8px', background: 'rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '11px' }}>
                             {userRole}
                         </span>
                     </span>
-                    <button onClick={handleLogout} className="logout-button" style={{ margin: 0 }}>
-                        Sign Out
-                    </button>
+                    <button onClick={handleLogout} className="logout-button" style={{ margin: 0 }}>Sign Out</button>
                 </div>
             </div>
         </nav>

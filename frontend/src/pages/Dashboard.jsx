@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import UserService from '../services/user.service';
 import CompanyService from '../services/company.service';
-import InternshipService from '../services/internship.service'; // <-- AJOUT DE L'IMPORT
+import InternshipService from '../services/internship.service';
+import DefenseService from '../services/defense.service'; // <-- AJOUT DE L'IMPORT
 import '../styles/layout.css';
 
 const Dashboard = () => {
@@ -11,15 +12,15 @@ const Dashboard = () => {
     const [userInfo, setUserInfo] = useState({ email: '', role: '' });
     
     const [stats, setStats] = useState({
-        // Admin stats
         totalUsers: 0,
         pendingActivations: 0,
         registeredCompanies: 0, 
         internshipsToValidate: 0,
-        // Student stats
         studentStatus: 'Searching',
         studentCompanyName: 'None',
-        hasInternship: false
+        hasInternship: false,
+        defenseDate: null,   // <-- NOUVEAU
+        defenseRoom: null    // <-- NOUVEAU
     });
     const [isStatsLoading, setIsStatsLoading] = useState(true);
 
@@ -28,15 +29,8 @@ const Dashboard = () => {
         if (token) {
             try {
                 const decoded = jwtDecode(token);
-                const role = decoded.role;
-                const email = decoded.sub;
-                setUserInfo({ 
-                    email: email, 
-                    role: role 
-                });
-
-                fetchDashboardData(role, email);
-
+                setUserInfo({ email: decoded.sub, role: decoded.role });
+                fetchDashboardData(decoded.role, decoded.sub);
             } catch (error) {
                 console.error("Invalid token on dashboard");
             }
@@ -46,76 +40,65 @@ const Dashboard = () => {
     const fetchDashboardData = async (role, email) => {
         setIsStatsLoading(true);
         try {
-            // =====================================
-            // LOGIQUE ADMINISTRATEUR
-            // =====================================
             if (role === 'ADMINISTRATOR') {
                 const response = await UserService.getAllUsers();
                 let companiesCount = 0;
-                try {
-                    companiesCount = await CompanyService.countCompanies();
-                } catch (companyError) {
-                    console.warn("API Entreprises non prête, compteur à 0 par défaut.");
-                }
+                try { companiesCount = await CompanyService.countCompanies(); } catch (e) {}
 
                 if (Array.isArray(response.data)) {
-                    const users = response.data;
-                    const total = users.length;
-                    const pending = users.filter(user => user.active === false).length;
-
                     setStats(prev => ({
                         ...prev,
-                        totalUsers: total,
-                        pendingActivations: pending,
+                        totalUsers: response.data.length,
+                        pendingActivations: response.data.filter(u => !u.active).length,
                         registeredCompanies: companiesCount
                     }));
                 }
             }
-            
-            // =====================================
-            // LOGIQUE ÉTUDIANT
-            // =====================================
             else if (role === 'STUDENT') {
+                // 1. Fetch Internship
                 const response = await InternshipService.getAllInternships({ studentEmail: email });
-                
+                let hasInternship = false;
+                let status = 'Searching';
+                let compName = 'None';
+
                 if (response.data && response.data.length > 0) {
-                    const myInternship = response.data[0]; // On prend le premier stage de l'étudiant
-                    
-                    // On essaie de récupérer le vrai nom de l'entreprise via le SIRET
-                    let compName = myInternship.companySiret;
+                    const myInternship = response.data[0];
+                    hasInternship = true;
+                    status = myInternship.status;
+                    compName = myInternship.companySiret;
                     try {
                         const compRes = await CompanyService.getCompanyBySiret(myInternship.companySiret);
                         compName = compRes.data.corporateName;
-                    } catch (e) {
-                        console.warn("Impossible de récupérer le nom de l'entreprise");
-                    }
-
-                    setStats(prev => ({
-                        ...prev,
-                        studentStatus: myInternship.status,
-                        studentCompanyName: compName,
-                        hasInternship: true
-                    }));
-                } else {
-                    setStats(prev => ({
-                        ...prev,
-                        studentStatus: 'Searching',
-                        studentCompanyName: 'None',
-                        hasInternship: false
-                    }));
+                    } catch (e) {}
                 }
+
+                // 2. Fetch Defenses
+                let dDate = null;
+                let dRoom = null;
+                try {
+                    const defRes = await DefenseService.getAllDefenses();
+                    const myDefense = defRes.data.find(d => d.studentEmail === email);
+                    if (myDefense) {
+                        dDate = myDefense.date;
+                        dRoom = myDefense.room;
+                    }
+                } catch (e) { console.warn("Could not fetch defenses"); }
+
+                setStats(prev => ({
+                    ...prev,
+                    studentStatus: status,
+                    studentCompanyName: compName,
+                    hasInternship: hasInternship,
+                    defenseDate: dDate,
+                    defenseRoom: dRoom
+                }));
             }
-            
         } catch (error) {
-            console.error("Erreur lors de la récupération des données du tableau de bord:", error);
+            console.error("Erreur Dashboard:", error);
         } finally {
             setIsStatsLoading(false);
         }
     };
-
-    // =========================================
-    // ROLE-SPECIFIC VIEWS
-    // =========================================
 
     const renderAdminDashboard = () => (
         <>
@@ -124,22 +107,16 @@ const Dashboard = () => {
                     <span className="stats-icon">👥</span>
                     <div>
                         <span className="stats-label">Total Users</span>
-                        <span className="stats-value">
-                            {isStatsLoading ? "..." : stats.totalUsers}
-                        </span>
+                        <span className="stats-value">{isStatsLoading ? "..." : stats.totalUsers}</span>
                     </div>
                 </div>
-                
                 <div className="stats-card" style={{ borderColor: '#10b981' }}>
                     <span className="stats-icon">🏢</span>
                     <div>
                         <span className="stats-label">Registered Companies</span>
-                        <span className="stats-value">
-                            {isStatsLoading ? "..." : stats.registeredCompanies}
-                        </span> 
+                        <span className="stats-value">{isStatsLoading ? "..." : stats.registeredCompanies}</span> 
                     </div>
                 </div>
-                
                 <div className="stats-card" style={{ borderColor: stats.pendingActivations > 0 ? '#fca5a5' : 'rgba(255, 255, 255, 0.4)' }}>
                     <span className="stats-icon">⚠️</span>
                     <div>
@@ -150,17 +127,10 @@ const Dashboard = () => {
                     </div>
                 </div>
             </div>
-
             <div className="glass-card" style={{ marginTop: '20px' }}>
                 <h3>Quick Actions</h3>
                 <p>Manage platform settings and user access.</p>
-                <button 
-                    onClick={() => navigate('/admin/users')} 
-                    className="auth-button btn-action" 
-                    style={{ width: 'auto', padding: '0 20px', marginTop: '15px' }}
-                >
-                    Go to User Management
-                </button>
+                <button onClick={() => navigate('/admin/users')} className="auth-button" style={{ width: 'auto', padding: '10px 20px', marginTop: '15px' }}>Go to User Management</button>
             </div>
         </>
     );
@@ -168,7 +138,6 @@ const Dashboard = () => {
     const renderStudentDashboard = () => (
         <>
             <div className="stats-grid">
-                {/* 1. Statut dynamique du stage */}
                 <div className="stats-card highlight" style={{ borderColor: stats.studentStatus === 'VALIDATED' ? '#10b981' : '#3b82f6' }}>
                     <span className="stats-icon">🎓</span>
                     <div>
@@ -178,8 +147,6 @@ const Dashboard = () => {
                         </span>
                     </div>
                 </div>
-                
-                {/* 2. Affichage de l'entreprise assignée */}
                 <div className="stats-card">
                     <span className="stats-icon">🏢</span>
                     <div>
@@ -191,18 +158,21 @@ const Dashboard = () => {
                 </div>
             </div>
 
+            {/* --- NOUVEAU : ALERTE SOUTENANCE --- */}
+            {stats.defenseDate && (
+                <div className="glass-card" style={{ marginTop: '20px', borderColor: '#a855f7', background: 'rgba(168, 85, 247, 0.1)', borderLeft: '4px solid #a855f7' }}>
+                    <h3 style={{ color: '#d8b4fe', margin: '0 0 10px 0' }}>🗓️ Upcoming Defense Scheduled!</h3>
+                    <p style={{ margin: '5px 0' }}>Your oral defense is scheduled for: <strong style={{ color: '#fff' }}>{new Date(stats.defenseDate).toLocaleString()}</strong></p>
+                    <p style={{ margin: '0' }}>Room: <strong style={{ color: '#fff' }}>{stats.defenseRoom}</strong></p>
+                </div>
+            )}
+
             <div className="glass-card" style={{ marginTop: '20px' }}>
                 {stats.hasInternship ? (
                     <>
                         <h3 style={{ color: '#86efac' }}>You are on track!</h3>
                         <p>Your internship has been registered. Don't forget to submit your final report before the deadline.</p>
-                        <button 
-                            onClick={() => navigate('/internships')} 
-                            className="auth-button btn-action" 
-                            style={{ width: 'auto', padding: '0 20px', marginTop: '15px' }}
-                        >
-                            View Internship Details
-                        </button>
+                        <button onClick={() => navigate('/internships')} className="auth-button btn-action" style={{ width: 'auto', marginTop: '15px' }}>View Internship Details</button>
                     </>
                 ) : (
                     <>
@@ -212,13 +182,7 @@ const Dashboard = () => {
                             <li>Browse the Companies Directory to find opportunities.</li>
                             <li>Contact your administration to register your internship.</li>
                         </ul>
-                        <button 
-                            onClick={() => navigate('/companies')} 
-                            className="auth-button btn-action" 
-                            style={{ width: 'auto', padding: '0 20px', marginTop: '15px' }}
-                        >
-                            Browse Companies
-                        </button>
+                        <button onClick={() => navigate('/companies')} className="auth-button btn-action" style={{ width: 'auto', marginTop: '15px' }}>Browse Companies</button>
                     </>
                 )}
             </div>
@@ -230,20 +194,13 @@ const Dashboard = () => {
             <div className="stats-grid">
                 <div className="stats-card highlight">
                     <span className="stats-icon">📋</span>
-                    <div>
-                        <span className="stats-label">Internships to Validate</span>
-                        <span className="stats-value">0</span>
-                    </div>
+                    <div><span className="stats-label">Internships to Validate</span><span className="stats-value">0</span></div>
                 </div>
                 <div className="stats-card">
                     <span className="stats-icon">👨‍🎓</span>
-                    <div>
-                        <span className="stats-label">My Students</span>
-                        <span className="stats-value">0</span>
-                    </div>
+                    <div><span className="stats-label">My Students</span><span className="stats-value">0</span></div>
                 </div>
             </div>
-
             <div className="glass-card" style={{ marginTop: '20px' }}>
                 <h3>Recent Activity</h3>
                 <p>No new internship agreements submitted today.</p>
@@ -258,9 +215,6 @@ const Dashboard = () => {
         </div>
     );
 
-    // =========================================
-    // MAIN RENDER
-    // =========================================
     return (
         <div className="app-layout">
             <div className="page-container">
@@ -271,17 +225,13 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-                {/* Conditional Rendering based on Role */}
                 {userInfo.role === 'ADMINISTRATOR' && renderAdminDashboard()}
                 {userInfo.role === 'STUDENT' && renderStudentDashboard()}
                 {userInfo.role === 'TEACHER' && renderTeacherDashboard()}
                 {userInfo.role === 'GUEST' && renderGuestDashboard()}
                 
-                {/* Fallback if role is not caught */}
                 {!['ADMINISTRATOR', 'STUDENT', 'TEACHER', 'GUEST'].includes(userInfo.role) && (
-                    <div className="glass-card">
-                        <p>Loading your dashboard...</p>
-                    </div>
+                    <div className="glass-card"><p>Loading your dashboard...</p></div>
                 )}
             </div>
         </div>

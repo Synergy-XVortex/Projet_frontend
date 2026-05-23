@@ -391,3 +391,35 @@
         width: 100%;
     }
 }
+
+/* =========================================
+   9. FLOATING ACTION BUTTON (PROFILE)
+   ========================================= */
+
+.fab-container {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 9990;
+}
+
+.fab-button {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+    color: white;
+    font-size: 24px;
+    border: none;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.fab-button:hover {
+    transform: scale(1.1) rotate(45deg);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
+}

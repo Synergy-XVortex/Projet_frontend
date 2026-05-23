@@ -41,6 +41,9 @@ const Internships = () => {
     const [uploadFile, setUploadFile] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
 
+    // Evaluation State (For Teacher)
+    const [evaluationForm, setEvaluationForm] = useState({ grade: '', comment: '' });
+
     // Delete Undo Logic
     const [deletedInternship, setDeletedInternship] = useState(null);
     const deleteTimeoutRef = useRef(null);
@@ -97,7 +100,14 @@ const Internships = () => {
 
     const processedInternships = useMemo(() => {
         let result = [...internships];
+        
+        // CORRECTION : Le professeur ne voit que SES élèves par défaut
+        if (userRole === 'TEACHER') {
+            result = result.filter(i => i.teacherEmail === userEmail);
+        }
+
         if (activeTab !== 'ALL') result = result.filter(i => i.status === activeTab);
+        
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
             result = result.filter(i => 
@@ -107,6 +117,7 @@ const Internships = () => {
                 (i.objective?.toLowerCase().includes(term))
             );
         }
+        
         if (sortConfig.key !== null) {
             result.sort((a, b) => {
                 let aValue = String(a[sortConfig.key] || '').toLowerCase();
@@ -117,12 +128,13 @@ const Internships = () => {
             });
         }
         return result;
-    }, [internships, activeTab, searchTerm, sortConfig]);
+    }, [internships, activeTab, searchTerm, sortConfig, userRole, userEmail]);
 
     // --- HANDLERS: DETAILS & REPORT ---
     const handleDetailsClick = async (internship) => {
         setSelectedInternship(internship);
         setUploadFile(null);
+        setEvaluationForm({ grade: '', comment: '' }); // Reset evaluation form
         setIsDetailsModalOpen(true);
         setIsDetailsLoading(true);
         try {
@@ -183,6 +195,33 @@ const Internships = () => {
             } catch (e) {
                 alert("Cannot delete the report. It may have just been graded by the teacher.");
             }
+        }
+    };
+
+    // --- NOUVEAU HANDLER : Soumettre l'évaluation ---
+    const handleEvaluateReport = async () => {
+        if (!evaluationForm.grade || evaluationForm.grade < 0 || evaluationForm.grade > 20) {
+            return alert("Please enter a valid grade between 0 and 20.");
+        }
+        setIsUploading(true);
+        try {
+            const payload = {
+                grade: parseFloat(evaluationForm.grade),
+                comment: evaluationForm.comment || ""
+            };
+            await InternshipService.evaluateReport(details.report.fileName, payload);
+            
+            // Refresh report data to show the new grade
+            const reportRes = await InternshipService.getReport(selectedInternship.id);
+            setDetails(prev => ({ ...prev, report: reportRes.data }));
+            
+            // Update internship status to VALIDATED automatically (optional logic, but highly useful)
+            await handleStatusDropdownChange(selectedInternship.id, 'VALIDATED');
+            
+        } catch (err) {
+            alert("Error submitting evaluation.");
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -268,9 +307,11 @@ const Internships = () => {
                 <div className="page-header">
                     <div className="page-header-text">
                         <h1 className="page-title">{userRole === 'STUDENT' ? 'My Internship' : 'Internship Management'}</h1>
-                        <p className="page-subtitle">{userRole === 'STUDENT' ? 'Track your internship progress.' : 'Track, monitor, and validate student internship life cycles.'}</p>
+                        <p className="page-subtitle">
+                            {userRole === 'STUDENT' ? 'Track your internship progress.' : 'Track, monitor, and validate student internship life cycles.'}
+                        </p>
                     </div>
-                    {userRole !== 'STUDENT' && (
+                    {userRole === 'ADMINISTRATOR' && (
                         <div className="page-header-actions">
                             <button onClick={openCreateModal} className="auth-button btn-action" style={{ gap: '8px' }}>
                                 <span style={{ fontSize: '18px', fontWeight: 'bold' }}>+</span> Add Internship
@@ -300,7 +341,6 @@ const Internships = () => {
                         <p style={{ padding: '30px', textAlign: 'center' }}>Loading internship data...</p>
                     ) : (
                         <div style={{ overflowX: 'auto' }}>
-                            {/* CORRECTION RESPONSIVE : minWidth réduit de 1000px à 768px */}
                             <table style={{ width: '100%', minWidth: '768px', borderCollapse: 'collapse', textAlign: 'left', tableLayout: 'fixed' }}>
                                 <thead style={{ background: 'rgba(0,0,0,0.3)', color: '#fff', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                     <tr>
@@ -357,10 +397,9 @@ const Internships = () => {
                                                         )}
                                                     </td>
                                                     <td style={{ padding: '15px', verticalAlign: 'middle' }}>
-                                                        {/* CORRECTION RESPONSIVE : Ajout de flexWrap: 'wrap' pour empiler les boutons si l'écran est trop petit */}
                                                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
                                                             <button onClick={() => handleDetailsClick(internship)} className="logout-button btn-action">Details</button>
-                                                            {userRole !== 'STUDENT' && (
+                                                            {userRole === 'ADMINISTRATOR' && (
                                                                 <>
                                                                     <button onClick={() => openEditModal(internship)} className="auth-button btn-action">Edit</button>
                                                                     <button onClick={() => handleDeleteClick(internship)} className="logout-button btn-action" style={{ borderColor: '#ef4444', color: '#ef4444' }}>Delete</button>
@@ -378,7 +417,7 @@ const Internships = () => {
                     )}
                 </div>
 
-                {/* --- ADD/EDIT MODAL --- */}
+                {/* --- ADD/EDIT MODAL (ADMIN ONLY) --- */}
                 {isFormModalOpen && (
                     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', zIndex: 9999 }}>
                         <div className="glass-card" style={{ width: '600px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto', animation: 'fadeIn 0.3s ease' }}>
@@ -527,6 +566,7 @@ const Internships = () => {
                                                 </div>
                                                 <p style={{ fontSize: '12px', opacity: 0.7, margin: 0 }}>Submitted on: {new Date(details.report.submissionDate).toLocaleString()}</p>
                                                 
+                                                {/* DISPLAY EVALUATION IF IT EXISTS */}
                                                 {details.report.evaluation ? (
                                                     <div style={{ marginTop: '15px', padding: '15px', background: 'rgba(34, 197, 94, 0.1)', borderLeft: '4px solid #22c55e', borderRadius: '4px' }}>
                                                         <p style={{ margin: '0 0 10px 0', fontSize: '18px' }}><strong>Grade: {details.report.evaluation.grade} / 20</strong></p>
@@ -535,12 +575,46 @@ const Internships = () => {
                                                 ) : (
                                                     <p style={{ marginTop: '15px', color: '#fcd34d', fontWeight: 'bold' }}>⏳ Report submitted. Waiting for teacher evaluation.</p>
                                                 )}
+
+                                                {/* TEACHER EVALUATION FORM : Visible only to teacher if no evaluation exists */}
+                                                {userRole === 'TEACHER' && !details.report.evaluation && (
+                                                    <div style={{ marginTop: '15px', padding: '15px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                                        <h5 style={{ margin: '0 0 10px 0', color: '#a855f7' }}>✍️ Evaluate this report</h5>
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                <label style={{ fontSize: '12px' }}>Grade (/20):</label>
+                                                                <input 
+                                                                    type="number" min="0" max="20" step="0.5" 
+                                                                    className="auth-input" 
+                                                                    style={{ width: '80px', padding: '5px', marginBottom: 0 }} 
+                                                                    value={evaluationForm.grade} 
+                                                                    onChange={e => setEvaluationForm({...evaluationForm, grade: e.target.value})} 
+                                                                />
+                                                            </div>
+                                                            <textarea 
+                                                                className="auth-input" 
+                                                                placeholder="Teacher's comments..." 
+                                                                style={{ height: '60px', resize: 'none', marginBottom: 0 }} 
+                                                                value={evaluationForm.comment} 
+                                                                onChange={e => setEvaluationForm({...evaluationForm, comment: e.target.value})}
+                                                            ></textarea>
+                                                            <button 
+                                                                className="auth-button btn-action" 
+                                                                onClick={handleEvaluateReport} 
+                                                                disabled={isUploading || !evaluationForm.grade}
+                                                                style={{ width: '100%', opacity: (isUploading || !evaluationForm.grade) ? 0.5 : 1 }}
+                                                            >
+                                                                Submit Evaluation
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         ) : (
                                             <p style={{ opacity: 0.7, marginBottom: '15px' }}>No report uploaded yet.</p>
                                         )}
 
-                                        {/* UPLOAD / REPLACE OPTION: Visible if not yet evaluated */}
+                                        {/* UPLOAD / REPLACE OPTION: Visible if student and not yet evaluated */}
                                         {userRole === 'STUDENT' && (!details.report || !details.report.evaluation) && (
                                             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: details.report ? '15px' : '0', paddingTop: details.report ? '15px' : '0', borderTop: details.report ? '1px solid rgba(255,255,255,0.1)' : 'none', flexWrap: 'wrap' }}>
                                                 <input 
