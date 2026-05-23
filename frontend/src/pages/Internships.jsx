@@ -12,7 +12,6 @@ const Internships = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
 
-    // Modals
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     
@@ -31,7 +30,6 @@ const Internships = () => {
         siret: '', corporateName: '', address: '', contactEmail: '', contactPhone: '' 
     });
 
-    // --- NOUVEAUX ÉTATS POUR LE RAPPORT ---
     const [details, setDetails] = useState({ student: null, teacher: null, company: null, report: null });
     const [isDetailsLoading, setIsDetailsLoading] = useState(false);
     const [uploadFile, setUploadFile] = useState(null);
@@ -112,7 +110,7 @@ const Internships = () => {
 
     const handleDetailsClick = async (internship) => {
         setSelectedInternship(internship);
-        setUploadFile(null); // Reset file input
+        setUploadFile(null);
         setIsDetailsModalOpen(true);
         setIsDetailsLoading(true);
         try {
@@ -125,37 +123,42 @@ const Internships = () => {
                 const teacherRes = await UserService.getUserByEmail(internship.teacherEmail);
                 teacherData = teacherRes.data;
             }
-            
-            // Récupération du rapport
             let reportData = null;
             try {
                 const reportRes = await InternshipService.getReport(internship.id);
                 reportData = reportRes.data;
-            } catch(e) {
-                // 404 Expected si aucun rapport n'a encore été uplaodé
-            }
+            } catch(e) {}
 
             setDetails({ student: studentRes.data, company: companyRes.data, teacher: teacherData, report: reportData });
         } catch (err) { console.error("Error loading details", err); } 
         finally { setIsDetailsLoading(false); }
     };
 
-    // --- UPLOAD LOGIC ---
     const handleUploadReport = async () => {
         if (!uploadFile) return;
         setIsUploading(true);
         try {
             await InternshipService.uploadReport(selectedInternship.id, uploadFile);
-            
-            // Rafraîchir les données du rapport après l'upload
             const reportRes = await InternshipService.getReport(selectedInternship.id);
             setDetails(prev => ({ ...prev, report: reportRes.data }));
             setUploadFile(null);
-            alert("Report successfully uploaded!");
         } catch (err) {
             alert("Error uploading report. Please try again.");
         } finally {
             setIsUploading(false);
+        }
+    };
+
+    // --- NOUVELLE FONCTION : Ouverture du PDF ---
+    const handleViewReport = async (fileName) => {
+        try {
+            const response = await InternshipService.downloadReport(fileName);
+            // On convertit le blob reçu en URL utilisable par le navigateur
+            const file = new Blob([response.data], { type: 'application/pdf' });
+            const fileURL = URL.createObjectURL(file);
+            window.open(fileURL, '_blank'); // Ouvre le PDF dans un nouvel onglet !
+        } catch (error) {
+            alert("Error downloading the report. The file may have been moved.");
         }
     };
 
@@ -458,7 +461,16 @@ const Internships = () => {
                                         
                                         {details.report ? (
                                             <div>
-                                                <p style={{ marginBottom: '5px' }}><strong>Uploaded File:</strong> {details.report.fileName}</p>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                                                    <p style={{ margin: 0 }}><strong>Uploaded File:</strong> {details.report.fileName}</p>
+                                                    <button 
+                                                        onClick={() => handleViewReport(details.report.fileName)} 
+                                                        className="auth-button btn-action" 
+                                                        style={{ padding: '0 15px', height: '30px', fontSize: '12px' }}
+                                                    >
+                                                        👁️ View PDF
+                                                    </button>
+                                                </div>
                                                 <p style={{ fontSize: '12px', opacity: 0.7, margin: 0 }}>Submitted on: {new Date(details.report.submissionDate).toLocaleString()}</p>
                                                 
                                                 {details.report.evaluation ? (
@@ -474,7 +486,6 @@ const Internships = () => {
                                             <div>
                                                 <p style={{ opacity: 0.7, marginBottom: '15px' }}>No report uploaded yet.</p>
                                                 
-                                                {/* Seul l'étudiant peut voir l'input d'upload */}
                                                 {userRole === 'STUDENT' && (
                                                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                                                         <input 

@@ -68,6 +68,15 @@ class InternshipService {
             }
         });
     }
+
+    // Télécharger/Visualiser le PDF
+    downloadReport(fileName) {
+        const token = localStorage.getItem('jwt_token');
+        return axios.get(`http://localhost:8080/reports/${encodeURIComponent(fileName)}/download`, {
+            headers: { Authorization: `Bearer ${token}` },
+            responseType: 'blob' // CRUCIAL POUR LES FICHIERS PDF !
+        });
+    }
 }
 
 export default new InternshipService();
