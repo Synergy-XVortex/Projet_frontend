@@ -2,53 +2,48 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import InternshipService from '../services/internship.service';
 import UserService from '../services/user.service';
 import CompanyService from '../services/company.service';
+import DefenseService from '../services/defense.service'; // <-- NOUVEL IMPORT
 import { jwtDecode } from 'jwt-decode';
 import '../styles/layout.css';
 
 const Internships = () => {
-    // --- STATE MANAGEMENT ---
     const [internships, setInternships] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('ALL');
     const [searchTerm, setSearchTerm] = useState('');
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
 
-    // Modal Visibility States
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     
-    // Form Data
     const [selectedInternship, setSelectedInternship] = useState(null);
     const [formData, setFormData] = useState({
         id: null, objective: '', startDate: '', durationWeeks: 12, 
         companySiret: '', studentEmail: '', teacherEmail: ''
     });
 
-    // Reference Data for Dropdowns
     const [students, setStudents] = useState([]);
     const [teachers, setTeachers] = useState([]);
     const [companies, setCompanies] = useState([]);
 
-    // Quick Add Company State
     const [isAddingNewCompany, setIsAddingNewCompany] = useState(false);
     const [newCompanyData, setNewCompanyData] = useState({ 
         siret: '', corporateName: '', address: '', contactEmail: '', contactPhone: '' 
     });
 
-    // Details Modal State (Including Report)
-    const [details, setDetails] = useState({ student: null, teacher: null, company: null, report: null });
+    // Détails de la modale
+    const [details, setDetails] = useState({ student: null, teacher: null, company: null, report: null, defense: null });
     const [isDetailsLoading, setIsDetailsLoading] = useState(false);
     const [uploadFile, setUploadFile] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
 
-    // Evaluation State (For Teacher)
+    // Formulaires
     const [evaluationForm, setEvaluationForm] = useState({ grade: '', comment: '' });
+    const [defenseForm, setDefenseForm] = useState({ date: '', time: '', room: '' }); // <-- NOUVEAU
 
-    // Delete Undo Logic
     const [deletedInternship, setDeletedInternship] = useState(null);
     const deleteTimeoutRef = useRef(null);
 
-    // Auth Information
     const token = localStorage.getItem('jwt_token');
     let userRole = '';
     let userEmail = '';
@@ -60,15 +55,11 @@ const Internships = () => {
         } catch (error) { console.error("Invalid token"); }
     }
 
-    // --- INITIALIZATION ---
     useEffect(() => {
         fetchInternships();
-        if (userRole !== 'STUDENT') {
-            fetchDropdownData();
-        }
+        if (userRole !== 'STUDENT') fetchDropdownData();
     }, []);
 
-    // --- DATA FETCHING ---
     const fetchInternships = async () => {
         setIsLoading(true);
         try {
@@ -91,7 +82,6 @@ const Internships = () => {
         } catch (error) { console.error("Error loading reference data", error); }
     };
 
-    // --- DATA PROCESSING (SORT & FILTER) ---
     const requestSort = (key) => {
         let direction = 'ascending';
         if (sortConfig.key === key && sortConfig.direction === 'ascending') direction = 'descending';
@@ -100,12 +90,7 @@ const Internships = () => {
 
     const processedInternships = useMemo(() => {
         let result = [...internships];
-        
-        // CORRECTION : Le professeur ne voit que SES élèves par défaut
-        if (userRole === 'TEACHER') {
-            result = result.filter(i => i.teacherEmail === userEmail);
-        }
-
+        if (userRole === 'TEACHER') result = result.filter(i => i.teacherEmail === userEmail);
         if (activeTab !== 'ALL') result = result.filter(i => i.status === activeTab);
         
         if (searchTerm) {
@@ -130,11 +115,11 @@ const Internships = () => {
         return result;
     }, [internships, activeTab, searchTerm, sortConfig, userRole, userEmail]);
 
-    // --- HANDLERS: DETAILS & REPORT ---
     const handleDetailsClick = async (internship) => {
         setSelectedInternship(internship);
         setUploadFile(null);
-        setEvaluationForm({ grade: '', comment: '' }); // Reset evaluation form
+        setEvaluationForm({ grade: '', comment: '' }); 
+        setDefenseForm({ date: '', time: '', room: '' }); // Reset defense form
         setIsDetailsModalOpen(true);
         setIsDetailsLoading(true);
         try {
@@ -152,11 +137,16 @@ const Internships = () => {
             try {
                 const reportRes = await InternshipService.getReport(internship.id);
                 reportData = reportRes.data;
-            } catch(e) {
-                // 404 Expected if no report has been uploaded yet
-            }
+            } catch(e) {}
 
-            setDetails({ student: studentRes.data, company: companyRes.data, teacher: teacherData, report: reportData });
+            // --- FETCH DEFENSE ---
+            let defenseData = null;
+            try {
+                const defRes = await DefenseService.getAllDefenses();
+                defenseData = defRes.data.find(d => d.studentEmail === internship.studentEmail);
+            } catch(e) {}
+
+            setDetails({ student: studentRes.data, company: companyRes.data, teacher: teacherData, report: reportData, defense: defenseData });
         } catch (err) { console.error("Error loading details", err); } 
         finally { setIsDetailsLoading(false); }
     };
@@ -169,11 +159,8 @@ const Internships = () => {
             const reportRes = await InternshipService.getReport(selectedInternship.id);
             setDetails(prev => ({ ...prev, report: reportRes.data }));
             setUploadFile(null);
-        } catch (err) {
-            alert("Error uploading report. Please try again.");
-        } finally {
-            setIsUploading(false);
-        }
+        } catch (err) { alert("Error uploading report. Please try again."); } 
+        finally { setIsUploading(false); }
     };
 
     const handleViewReport = async (fileName) => {
@@ -182,9 +169,7 @@ const Internships = () => {
             const file = new Blob([response.data], { type: 'application/pdf' });
             const fileURL = URL.createObjectURL(file);
             window.open(fileURL, '_blank');
-        } catch (error) {
-            alert("Error downloading the report. The file may have been moved.");
-        }
+        } catch (error) { alert("Error downloading the report. The file may have been moved."); }
     };
 
     const handleDeleteReport = async () => {
@@ -192,40 +177,51 @@ const Internships = () => {
             try {
                 await InternshipService.deleteReport(selectedInternship.id);
                 setDetails(prev => ({ ...prev, report: null }));
-            } catch (e) {
-                alert("Cannot delete the report. It may have just been graded by the teacher.");
-            }
+            } catch (e) { alert("Cannot delete the report. It may have just been graded by the teacher."); }
         }
     };
 
-    // --- NOUVEAU HANDLER : Soumettre l'évaluation ---
     const handleEvaluateReport = async () => {
         if (!evaluationForm.grade || evaluationForm.grade < 0 || evaluationForm.grade > 20) {
             return alert("Please enter a valid grade between 0 and 20.");
         }
         setIsUploading(true);
         try {
-            const payload = {
-                grade: parseFloat(evaluationForm.grade),
-                comment: evaluationForm.comment || ""
-            };
+            const payload = { grade: parseFloat(evaluationForm.grade), comment: evaluationForm.comment || "" };
             await InternshipService.evaluateReport(details.report.fileName, payload);
-            
-            // Refresh report data to show the new grade
             const reportRes = await InternshipService.getReport(selectedInternship.id);
             setDetails(prev => ({ ...prev, report: reportRes.data }));
-            
-            // Update internship status to VALIDATED automatically (optional logic, but highly useful)
             await handleStatusDropdownChange(selectedInternship.id, 'VALIDATED');
+        } catch (err) { alert("Error submitting evaluation."); } 
+        finally { setIsUploading(false); }
+    };
+
+    // --- NOUVEAU HANDLER : Programmer la soutenance ---
+    const handleScheduleDefense = async () => {
+        if (!defenseForm.date || !defenseForm.time || !defenseForm.room) return;
+        setIsUploading(true);
+        try {
+            // Combinaison de la date et de l'heure au format ISO pour le Backend
+            const isoDate = new Date(`${defenseForm.date}T${defenseForm.time}`).toISOString();
+            const payload = {
+                studentEmail: selectedInternship.studentEmail,
+                date: isoDate,
+                room: defenseForm.room
+            };
+            await DefenseService.scheduleDefense(payload);
             
+            const defRes = await DefenseService.getAllDefenses();
+            const updatedDefense = defRes.data.find(d => d.studentEmail === selectedInternship.studentEmail);
+            setDetails(prev => ({ ...prev, defense: updatedDefense }));
+            
+            alert("Defense successfully scheduled!");
         } catch (err) {
-            alert("Error submitting evaluation.");
+            alert("Error scheduling defense.");
         } finally {
             setIsUploading(false);
         }
     };
 
-    // --- HANDLERS: CRUD INTERNSHIPS ---
     const openCreateModal = () => {
         setFormData({ id: null, objective: '', startDate: '', durationWeeks: 12, companySiret: '', studentEmail: '', teacherEmail: '' });
         setIsAddingNewCompany(false);
@@ -286,7 +282,6 @@ const Internships = () => {
         if (deletedInternship) { setInternships(prev => [...prev, deletedInternship]); setDeletedInternship(null); }
     };
 
-    // --- HELPERS ---
     const getStatusBadgeStyle = (status) => {
         const styles = {
             VALIDATED: { color: '#86efac', bg: 'rgba(34, 197, 94, 0.2)', border: 'rgba(34, 197, 94, 0.3)' },
@@ -297,13 +292,9 @@ const Internships = () => {
         return styles[status] || styles.ONGOING;
     };
 
-    // =========================================
-    // RENDER
-    // =========================================
     return (
         <div className="app-layout">
             <div className="page-container">
-                {/* HEADER */}
                 <div className="page-header">
                     <div className="page-header-text">
                         <h1 className="page-title">{userRole === 'STUDENT' ? 'My Internship' : 'Internship Management'}</h1>
@@ -320,7 +311,6 @@ const Internships = () => {
                     )}
                 </div>
 
-                {/* CONTROLS (TABS & SEARCH) */}
                 {userRole !== 'STUDENT' && (
                     <div className="controls-container">
                         <div className="tabs-container">
@@ -335,7 +325,6 @@ const Internships = () => {
                     </div>
                 )}
 
-                {/* DATA TABLE */}
                 <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
                     {isLoading ? (
                         <p style={{ padding: '30px', textAlign: 'center' }}>Loading internship data...</p>
@@ -417,7 +406,6 @@ const Internships = () => {
                     )}
                 </div>
 
-                {/* --- ADD/EDIT MODAL (ADMIN ONLY) --- */}
                 {isFormModalOpen && (
                     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', zIndex: 9999 }}>
                         <div className="glass-card" style={{ width: '600px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto', animation: 'fadeIn 0.3s ease' }}>
@@ -498,7 +486,6 @@ const Internships = () => {
                     </div>
                 )}
 
-                {/* --- DETAILS MODAL WITH REPORT LOGIC --- */}
                 {isDetailsModalOpen && (
                     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', zIndex: 9999 }}>
                         <div className="glass-card" style={{ width: '650px', maxWidth: '95%', padding: '40px', maxHeight: '90vh', overflowY: 'auto', animation: 'fadeIn 0.3s ease' }}>
@@ -510,7 +497,6 @@ const Internships = () => {
                             {isDetailsLoading ? <p style={{ textAlign: 'center' }}>Loading detailed data...</p> : (
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', textAlign: 'left' }}>
                                     
-                                    {/* STUDENT INFO */}
                                     <div style={{ background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
                                         <h4 style={{ color: '#3b82f6', marginBottom: '12px', marginTop: 0 }}>👤 Student</h4>
                                         <p><strong>{details.student?.firstName} {details.student?.lastName}</strong></p>
@@ -518,7 +504,6 @@ const Internships = () => {
                                         <p style={{ fontSize: '12px' }}>Major: {details.student?.major}</p>
                                     </div>
 
-                                    {/* COMPANY INFO */}
                                     <div style={{ background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
                                         <h4 style={{ color: '#10b981', marginBottom: '12px', marginTop: 0 }}>🏢 Company</h4>
                                         <p><strong>{details.company?.corporateName}</strong></p>
@@ -526,7 +511,6 @@ const Internships = () => {
                                         <p style={{ fontSize: '12px', marginTop: '8px' }}>{details.company?.address}</p>
                                     </div>
 
-                                    {/* SUPERVISION INFO */}
                                     <div style={{ gridColumn: '1 / -1', background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '12px' }}>
                                         <h4 style={{ color: '#f59e0b', marginBottom: '12px', marginTop: 0 }}>🎓 Supervision</h4>
                                         {details.teacher ? (
@@ -534,7 +518,49 @@ const Internships = () => {
                                         ) : <p style={{ opacity: 0.5, fontStyle: 'italic' }}>No teacher assigned yet.</p>}
                                     </div>
                                     
-                                    {/* REPORT & EVALUATION SECTION */}
+                                    {/* --- NOUVELLE SECTION : ORAL DEFENSE --- */}
+                                    <div style={{ gridColumn: '1 / -1', background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '12px' }}>
+                                        <h4 style={{ color: '#ec4899', marginBottom: '12px', marginTop: 0 }}>🎤 Oral Defense</h4>
+                                        
+                                        {details.defense ? (
+                                            <div style={{ padding: '15px', background: 'rgba(236, 72, 153, 0.1)', borderLeft: '4px solid #ec4899', borderRadius: '4px' }}>
+                                                <p style={{ margin: '0 0 5px 0' }}><strong>Date & Time:</strong> {new Date(details.defense.date).toLocaleString()}</p>
+                                                <p style={{ margin: 0 }}><strong>Room:</strong> {details.defense.room}</p>
+                                            </div>
+                                        ) : (
+                                            <div>
+                                                <p style={{ opacity: 0.7, marginBottom: '15px' }}>No defense scheduled yet.</p>
+                                                
+                                                {userRole === 'ADMINISTRATOR' && (
+                                                    <div style={{ padding: '15px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                                        <h5 style={{ margin: '0 0 10px 0', color: '#ec4899' }}>📅 Schedule Defense</h5>
+                                                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                                            <input 
+                                                                type="date" className="auth-input" style={{ flex: 1, minWidth: '130px', marginBottom: 0 }} 
+                                                                value={defenseForm.date} onChange={e => setDefenseForm({...defenseForm, date: e.target.value})} 
+                                                            />
+                                                            <input 
+                                                                type="time" className="auth-input" style={{ width: '100px', marginBottom: 0 }} 
+                                                                value={defenseForm.time} onChange={e => setDefenseForm({...defenseForm, time: e.target.value})} 
+                                                            />
+                                                            <input 
+                                                                type="text" className="auth-input" placeholder="Room (e.g. Amphi A)" style={{ flex: 1, minWidth: '120px', marginBottom: 0 }} 
+                                                                value={defenseForm.room} onChange={e => setDefenseForm({...defenseForm, room: e.target.value})} 
+                                                            />
+                                                            <button 
+                                                                className="auth-button btn-action" onClick={handleScheduleDefense} 
+                                                                disabled={!defenseForm.date || !defenseForm.time || !defenseForm.room || isUploading}
+                                                                style={{ opacity: (!defenseForm.date || !defenseForm.time || !defenseForm.room || isUploading) ? 0.5 : 1 }}
+                                                            >
+                                                                Schedule
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+
                                     <div style={{ gridColumn: '1 / -1', background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '12px' }}>
                                         <h4 style={{ color: '#a855f7', marginBottom: '12px', marginTop: 0 }}>📄 Final Report & Evaluation</h4>
                                         
@@ -544,21 +570,12 @@ const Internships = () => {
                                                     <p style={{ margin: 0, wordBreak: 'break-all' }}><strong>Uploaded File:</strong> {details.report.fileName}</p>
                                                     
                                                     <div style={{ display: 'flex', gap: '8px' }}>
-                                                        <button 
-                                                            onClick={() => handleViewReport(details.report.fileName)} 
-                                                            className="auth-button btn-action" 
-                                                            style={{ padding: '0 15px', height: '30px', fontSize: '12px' }}
-                                                        >
+                                                        <button onClick={() => handleViewReport(details.report.fileName)} className="auth-button btn-action" style={{ padding: '0 15px', height: '30px', fontSize: '12px' }}>
                                                             👁️ View PDF
                                                         </button>
 
-                                                        {/* DELETE BUTTON: Visible only for student if no evaluation exists */}
                                                         {userRole === 'STUDENT' && !details.report.evaluation && (
-                                                            <button 
-                                                                onClick={handleDeleteReport} 
-                                                                className="logout-button btn-action" 
-                                                                style={{ padding: '0 15px', height: '30px', fontSize: '12px', borderColor: '#ef4444', color: '#ef4444' }}
-                                                            >
+                                                            <button onClick={handleDeleteReport} className="logout-button btn-action" style={{ padding: '0 15px', height: '30px', fontSize: '12px', borderColor: '#ef4444', color: '#ef4444' }}>
                                                                 🗑️ Delete
                                                             </button>
                                                         )}
@@ -566,7 +583,6 @@ const Internships = () => {
                                                 </div>
                                                 <p style={{ fontSize: '12px', opacity: 0.7, margin: 0 }}>Submitted on: {new Date(details.report.submissionDate).toLocaleString()}</p>
                                                 
-                                                {/* DISPLAY EVALUATION IF IT EXISTS */}
                                                 {details.report.evaluation ? (
                                                     <div style={{ marginTop: '15px', padding: '15px', background: 'rgba(34, 197, 94, 0.1)', borderLeft: '4px solid #22c55e', borderRadius: '4px' }}>
                                                         <p style={{ margin: '0 0 10px 0', fontSize: '18px' }}><strong>Grade: {details.report.evaluation.grade} / 20</strong></p>
@@ -576,34 +592,16 @@ const Internships = () => {
                                                     <p style={{ marginTop: '15px', color: '#fcd34d', fontWeight: 'bold' }}>⏳ Report submitted. Waiting for teacher evaluation.</p>
                                                 )}
 
-                                                {/* TEACHER EVALUATION FORM : Visible only to teacher if no evaluation exists */}
                                                 {userRole === 'TEACHER' && !details.report.evaluation && (
                                                     <div style={{ marginTop: '15px', padding: '15px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
                                                         <h5 style={{ margin: '0 0 10px 0', color: '#a855f7' }}>✍️ Evaluate this report</h5>
                                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                                                 <label style={{ fontSize: '12px' }}>Grade (/20):</label>
-                                                                <input 
-                                                                    type="number" min="0" max="20" step="0.5" 
-                                                                    className="auth-input" 
-                                                                    style={{ width: '80px', padding: '5px', marginBottom: 0 }} 
-                                                                    value={evaluationForm.grade} 
-                                                                    onChange={e => setEvaluationForm({...evaluationForm, grade: e.target.value})} 
-                                                                />
+                                                                <input type="number" min="0" max="20" step="0.5" className="auth-input" style={{ width: '80px', padding: '5px', marginBottom: 0 }} value={evaluationForm.grade} onChange={e => setEvaluationForm({...evaluationForm, grade: e.target.value})} />
                                                             </div>
-                                                            <textarea 
-                                                                className="auth-input" 
-                                                                placeholder="Teacher's comments..." 
-                                                                style={{ height: '60px', resize: 'none', marginBottom: 0 }} 
-                                                                value={evaluationForm.comment} 
-                                                                onChange={e => setEvaluationForm({...evaluationForm, comment: e.target.value})}
-                                                            ></textarea>
-                                                            <button 
-                                                                className="auth-button btn-action" 
-                                                                onClick={handleEvaluateReport} 
-                                                                disabled={isUploading || !evaluationForm.grade}
-                                                                style={{ width: '100%', opacity: (isUploading || !evaluationForm.grade) ? 0.5 : 1 }}
-                                                            >
+                                                            <textarea className="auth-input" placeholder="Teacher's comments..." style={{ height: '60px', resize: 'none', marginBottom: 0 }} value={evaluationForm.comment} onChange={e => setEvaluationForm({...evaluationForm, comment: e.target.value})}></textarea>
+                                                            <button className="auth-button btn-action" onClick={handleEvaluateReport} disabled={isUploading || !evaluationForm.grade} style={{ width: '100%', opacity: (isUploading || !evaluationForm.grade) ? 0.5 : 1 }}>
                                                                 Submit Evaluation
                                                             </button>
                                                         </div>
@@ -614,28 +612,16 @@ const Internships = () => {
                                             <p style={{ opacity: 0.7, marginBottom: '15px' }}>No report uploaded yet.</p>
                                         )}
 
-                                        {/* UPLOAD / REPLACE OPTION: Visible if student and not yet evaluated */}
                                         {userRole === 'STUDENT' && (!details.report || !details.report.evaluation) && (
                                             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: details.report ? '15px' : '0', paddingTop: details.report ? '15px' : '0', borderTop: details.report ? '1px solid rgba(255,255,255,0.1)' : 'none', flexWrap: 'wrap' }}>
-                                                <input 
-                                                    type="file" 
-                                                    accept=".pdf"
-                                                    onChange={(e) => setUploadFile(e.target.files[0])} 
-                                                    style={{ background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '6px', flex: 1, minWidth: '200px', border: '1px solid rgba(255,255,255,0.2)' }}
-                                                />
-                                                <button 
-                                                    onClick={handleUploadReport} 
-                                                    className="auth-button btn-action"
-                                                    disabled={!uploadFile || isUploading}
-                                                    style={{ opacity: (!uploadFile || isUploading) ? 0.5 : 1 }}
-                                                >
+                                                <input type="file" accept=".pdf" onChange={(e) => setUploadFile(e.target.files[0])} style={{ background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '6px', flex: 1, minWidth: '200px', border: '1px solid rgba(255,255,255,0.2)' }} />
+                                                <button onClick={handleUploadReport} className="auth-button btn-action" disabled={!uploadFile || isUploading} style={{ opacity: (!uploadFile || isUploading) ? 0.5 : 1 }}>
                                                     {isUploading ? 'Uploading...' : (details.report ? 'Replace PDF' : 'Upload PDF')}
                                                 </button>
                                             </div>
                                         )}
                                     </div>
 
-                                    {/* OBJECTIVE */}
                                     <div style={{ gridColumn: '1 / -1', marginTop: '5px' }}>
                                         <h4 style={{ marginBottom: '8px' }}>📝 Objective</h4>
                                         <p style={{ fontSize: '14px', lineHeight: '1.6', opacity: 0.8, maxHeight: '150px', overflowY: 'auto', background: 'rgba(0,0,0,0.2)', padding: '15px', borderRadius: '8px' }}>
@@ -648,7 +634,6 @@ const Internships = () => {
                     </div>
                 )}
 
-                {/* DELETE UNDO TOAST */}
                 {deletedInternship && (
                     <div style={{ position: 'fixed', bottom: '30px', left: '50%', transform: 'translateX(-50%)', background: '#1f2937', color: '#fff', padding: '12px 24px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '20px', zIndex: 9999, border: '1px solid rgba(255,255,255,0.1)', animation: 'slideUp 0.3s ease', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
                         <span>Internship #<strong>{deletedInternship.id}</strong> deleted.</span>
