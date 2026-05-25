@@ -3,11 +3,8 @@ import axios from 'axios';
 const API_URL = 'http://localhost:8080/internships';
 const BASE_URL = 'http://localhost:8080';
 
-/**
- * Service to handle internship-related API calls.
- */
 class InternshipService {
-    // Get all internships
+    // --- GESTION DES STAGES ---
     getAllInternships(params) {
         const token = localStorage.getItem('jwt_token');
         return axios.get(API_URL, {
@@ -16,7 +13,6 @@ class InternshipService {
         });
     }
 
-    // Update internship status
     updateStatus(id, status) {
         const token = localStorage.getItem('jwt_token');
         return axios.patch(`${API_URL}/${id}/status`, { status }, {
@@ -31,7 +27,6 @@ class InternshipService {
         });
     }
 
-    // Create a new internship
     createInternship(internshipData) {
         const token = localStorage.getItem('jwt_token');
         return axios.post(API_URL, internshipData, {
@@ -39,7 +34,6 @@ class InternshipService {
         });
     }
 
-    // Update existing internship
     updateInternship(id, internshipData) {
         const token = localStorage.getItem('jwt_token');
         return axios.put(`${API_URL}/${id}`, internshipData, {
@@ -47,8 +41,7 @@ class InternshipService {
         });
     }
 
-    // --- REPORT METHODS ---
-    
+    // --- GESTION DES RAPPORTS ET NOTES ---
     getReport(internshipId) {
         const token = localStorage.getItem('jwt_token');
         return axios.get(`${API_URL}/${internshipId}/report`, {
@@ -84,7 +77,6 @@ class InternshipService {
         });
     }
 
-    // --- NOUVELLE MÉTHODE : ÉVALUATION PAR LE PROFESSEUR ---
     evaluateReport(reportFileName, evaluationData) {
         const token = localStorage.getItem('jwt_token');
         return axios.post(`${BASE_URL}/reports/${encodeURIComponent(reportFileName)}/evaluation`, evaluationData, {

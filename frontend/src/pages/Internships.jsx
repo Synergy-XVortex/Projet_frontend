@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import InternshipService from '../services/internship.service';
 import UserService from '../services/user.service';
 import CompanyService from '../services/company.service';
-import DefenseService from '../services/defense.service'; // <-- NOUVEL IMPORT
+import DefenseService from '../services/defense.service';
 import { jwtDecode } from 'jwt-decode';
+import { jsPDF } from "jspdf"; 
 import '../styles/layout.css';
 
 const Internships = () => {
@@ -31,15 +32,13 @@ const Internships = () => {
         siret: '', corporateName: '', address: '', contactEmail: '', contactPhone: '' 
     });
 
-    // Détails de la modale
     const [details, setDetails] = useState({ student: null, teacher: null, company: null, report: null, defense: null });
     const [isDetailsLoading, setIsDetailsLoading] = useState(false);
     const [uploadFile, setUploadFile] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
 
-    // Formulaires
     const [evaluationForm, setEvaluationForm] = useState({ grade: '', comment: '' });
-    const [defenseForm, setDefenseForm] = useState({ date: '', time: '', room: '' }); // <-- NOUVEAU
+    const [defenseForm, setDefenseForm] = useState({ date: '', time: '', room: '' });
 
     const [deletedInternship, setDeletedInternship] = useState(null);
     const deleteTimeoutRef = useRef(null);
@@ -119,7 +118,7 @@ const Internships = () => {
         setSelectedInternship(internship);
         setUploadFile(null);
         setEvaluationForm({ grade: '', comment: '' }); 
-        setDefenseForm({ date: '', time: '', room: '' }); // Reset defense form
+        setDefenseForm({ date: '', time: '', room: '' }); 
         setIsDetailsModalOpen(true);
         setIsDetailsLoading(true);
         try {
@@ -139,7 +138,6 @@ const Internships = () => {
                 reportData = reportRes.data;
             } catch(e) {}
 
-            // --- FETCH DEFENSE ---
             let defenseData = null;
             try {
                 const defRes = await DefenseService.getAllDefenses();
@@ -149,6 +147,99 @@ const Internships = () => {
             setDetails({ student: studentRes.data, company: companyRes.data, teacher: teacherData, report: reportData, defense: defenseData });
         } catch (err) { console.error("Error loading details", err); } 
         finally { setIsDetailsLoading(false); }
+    };
+
+    const generateConventionPDF = () => {
+        if (!details.student || !details.company) return;
+
+        const doc = new jsPDF();
+        const margin = 20;
+        let cursorY = margin;
+
+        doc.setFontSize(22);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(59, 130, 246);
+        doc.text("CONVENTION DE STAGE", 105, cursorY, { align: "center" });
+        cursorY += 20;
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(0, 0, 0);
+        doc.text("ÉTABLISSEMENT D'ENSEIGNEMENT SUPÉRIEUR :", margin, cursorY);
+        doc.setFont("helvetica", "bold");
+        doc.text("ESEO - Grande École d'Ingénieurs", margin, cursorY + 5);
+        cursorY += 20;
+
+        doc.setFontSize(14);
+        doc.setTextColor(16, 185, 129);
+        doc.text("ARTICLE 1 : L'ÉTUDIANT(E)", margin, cursorY);
+        cursorY += 8;
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Nom et Prénom : ${details.student.firstName} ${details.student.lastName}`, margin, cursorY);
+        doc.text(`Email : ${details.student.email}`, margin, cursorY + 6);
+        doc.text(`Filière / Spécialité : ${details.student.major || 'Non renseignée'}`, margin, cursorY + 12);
+        cursorY += 25;
+
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(16, 185, 129);
+        doc.text("ARTICLE 2 : L'ENTREPRISE D'ACCUEIL", margin, cursorY);
+        cursorY += 8;
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Raison Sociale : ${details.company.corporateName}`, margin, cursorY);
+        doc.text(`Numéro SIRET : ${details.company.siret}`, margin, cursorY + 6);
+        doc.text(`Adresse : ${details.company.address || 'Non renseignée'}`, margin, cursorY + 12);
+        cursorY += 25;
+
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(16, 185, 129);
+        doc.text("ARTICLE 3 : MODALITÉS DU STAGE", margin, cursorY);
+        cursorY += 8;
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Date de début : ${new Date(selectedInternship.startDate).toLocaleDateString()}`, margin, cursorY);
+        doc.text(`Durée prévue : ${selectedInternship.durationWeeks} semaines`, margin, cursorY + 6);
+        
+        const objectiveLines = doc.splitTextToSize(`Sujet / Objectif : ${selectedInternship.objective}`, 170);
+        doc.text(objectiveLines, margin, cursorY + 12);
+        cursorY += 15 + (objectiveLines.length * 5);
+
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(16, 185, 129);
+        doc.text("ARTICLE 4 : ENCADREMENT", margin, cursorY);
+        cursorY += 8;
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont("helvetica", "normal");
+        if (details.teacher) {
+            doc.text(`Tuteur Académique : ${details.teacher.firstName} ${details.teacher.lastName} (${details.teacher.email})`, margin, cursorY);
+        } else {
+            doc.text(`Tuteur Académique : En attente d'assignation`, margin, cursorY);
+        }
+        cursorY += 30;
+
+        doc.setFont("helvetica", "italic");
+        doc.text("Fait pour valoir ce que de droit,", margin, cursorY);
+        cursorY += 15;
+        
+        doc.setFont("helvetica", "bold");
+        doc.text("L'Entreprise", margin, cursorY);
+        doc.text("L'École (ESEO)", 90, cursorY);
+        doc.text("L'Étudiant(e)", 150, cursorY);
+
+        doc.setDrawColor(150, 150, 150);
+        doc.line(margin, cursorY + 20, margin + 40, cursorY + 20);
+        doc.line(90, cursorY + 20, 130, cursorY + 20);
+        doc.line(150, cursorY + 20, 190, cursorY + 20);
+
+        doc.save(`Convention_Stage_${details.student.lastName}.pdf`);
     };
 
     const handleUploadReport = async () => {
@@ -196,30 +287,19 @@ const Internships = () => {
         finally { setIsUploading(false); }
     };
 
-    // --- NOUVEAU HANDLER : Programmer la soutenance ---
     const handleScheduleDefense = async () => {
         if (!defenseForm.date || !defenseForm.time || !defenseForm.room) return;
         setIsUploading(true);
         try {
-            // Combinaison de la date et de l'heure au format ISO pour le Backend
             const isoDate = new Date(`${defenseForm.date}T${defenseForm.time}`).toISOString();
-            const payload = {
-                studentEmail: selectedInternship.studentEmail,
-                date: isoDate,
-                room: defenseForm.room
-            };
+            const payload = { studentEmail: selectedInternship.studentEmail, date: isoDate, room: defenseForm.room };
             await DefenseService.scheduleDefense(payload);
-            
             const defRes = await DefenseService.getAllDefenses();
             const updatedDefense = defRes.data.find(d => d.studentEmail === selectedInternship.studentEmail);
             setDetails(prev => ({ ...prev, defense: updatedDefense }));
-            
             alert("Defense successfully scheduled!");
-        } catch (err) {
-            alert("Error scheduling defense.");
-        } finally {
-            setIsUploading(false);
-        }
+        } catch (err) { alert("Error scheduling defense."); } 
+        finally { setIsUploading(false); }
     };
 
     const openCreateModal = () => {
@@ -362,22 +442,11 @@ const Internships = () => {
                                                     </td>
                                                     <td style={{ padding: '15px', verticalAlign: 'middle' }}>
                                                         {userRole === 'STUDENT' ? (
-                                                            <span style={{ 
-                                                                padding: '4px 10px', borderRadius: '20px', fontSize: '11px', color: badge.color, 
-                                                                background: badge.bg, fontWeight: 'bold', border: `1px solid ${badge.border}`
-                                                            }}>
+                                                            <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11px', color: badge.color, background: badge.bg, fontWeight: 'bold', border: `1px solid ${badge.border}` }}>
                                                                 {internship.status}
                                                             </span>
                                                         ) : (
-                                                            <select
-                                                                value={internship.status}
-                                                                onChange={(e) => handleStatusDropdownChange(internship.id, e.target.value)}
-                                                                style={{ 
-                                                                    padding: '4px 8px', borderRadius: '20px', fontSize: '11px', color: badge.color, 
-                                                                    background: badge.bg, fontWeight: 'bold', border: `1px solid ${badge.border}`,
-                                                                    cursor: 'pointer', outline: 'none', appearance: 'auto', maxWidth: '100%'
-                                                                }}
-                                                            >
+                                                            <select value={internship.status} onChange={(e) => handleStatusDropdownChange(internship.id, e.target.value)} style={{ padding: '4px 8px', borderRadius: '20px', fontSize: '11px', color: badge.color, background: badge.bg, fontWeight: 'bold', border: `1px solid ${badge.border}`, cursor: 'pointer', outline: 'none', appearance: 'auto', maxWidth: '100%' }}>
                                                                 <option value="ONGOING" style={{color: '#fff', background: '#1f2937'}}>ONGOING</option>
                                                                 <option value="COMPLETED" style={{color: '#fff', background: '#1f2937'}}>COMPLETED</option>
                                                                 <option value="VALIDATED" style={{color: '#fff', background: '#1f2937'}}>VALIDATED</option>
@@ -406,6 +475,7 @@ const Internships = () => {
                     )}
                 </div>
 
+                {/* --- LE FAMEUX FORMULAIRE D'AJOUT --- */}
                 {isFormModalOpen && (
                     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', zIndex: 9999 }}>
                         <div className="glass-card" style={{ width: '600px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto', animation: 'fadeIn 0.3s ease' }}>
@@ -489,9 +559,17 @@ const Internships = () => {
                 {isDetailsModalOpen && (
                     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', zIndex: 9999 }}>
                         <div className="glass-card" style={{ width: '650px', maxWidth: '95%', padding: '40px', maxHeight: '90vh', overflowY: 'auto', animation: 'fadeIn 0.3s ease' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '25px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '15px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '25px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '15px', alignItems: 'center' }}>
                                 <h2 style={{ margin: 0 }}>Internship File #{selectedInternship?.id}</h2>
-                                <button onClick={() => setIsDetailsModalOpen(false)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '20px' }}>✖</button>
+                                
+                                <div style={{ display: 'flex', gap: '15px' }}>
+                                    {!isDetailsLoading && details.student && details.company && (
+                                        <button onClick={generateConventionPDF} className="auth-button btn-action" style={{ padding: '0 15px', height: '35px', fontSize: '13px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}>
+                                            📄 Download Convention
+                                        </button>
+                                    )}
+                                    <button onClick={() => setIsDetailsModalOpen(false)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '20px' }}>✖</button>
+                                </div>
                             </div>
 
                             {isDetailsLoading ? <p style={{ textAlign: 'center' }}>Loading detailed data...</p> : (
@@ -518,7 +596,6 @@ const Internships = () => {
                                         ) : <p style={{ opacity: 0.5, fontStyle: 'italic' }}>No teacher assigned yet.</p>}
                                     </div>
                                     
-                                    {/* --- NOUVELLE SECTION : ORAL DEFENSE --- */}
                                     <div style={{ gridColumn: '1 / -1', background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '12px' }}>
                                         <h4 style={{ color: '#ec4899', marginBottom: '12px', marginTop: 0 }}>🎤 Oral Defense</h4>
                                         
@@ -530,28 +607,14 @@ const Internships = () => {
                                         ) : (
                                             <div>
                                                 <p style={{ opacity: 0.7, marginBottom: '15px' }}>No defense scheduled yet.</p>
-                                                
                                                 {userRole === 'ADMINISTRATOR' && (
                                                     <div style={{ padding: '15px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
                                                         <h5 style={{ margin: '0 0 10px 0', color: '#ec4899' }}>📅 Schedule Defense</h5>
                                                         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                                                            <input 
-                                                                type="date" className="auth-input" style={{ flex: 1, minWidth: '130px', marginBottom: 0 }} 
-                                                                value={defenseForm.date} onChange={e => setDefenseForm({...defenseForm, date: e.target.value})} 
-                                                            />
-                                                            <input 
-                                                                type="time" className="auth-input" style={{ width: '100px', marginBottom: 0 }} 
-                                                                value={defenseForm.time} onChange={e => setDefenseForm({...defenseForm, time: e.target.value})} 
-                                                            />
-                                                            <input 
-                                                                type="text" className="auth-input" placeholder="Room (e.g. Amphi A)" style={{ flex: 1, minWidth: '120px', marginBottom: 0 }} 
-                                                                value={defenseForm.room} onChange={e => setDefenseForm({...defenseForm, room: e.target.value})} 
-                                                            />
-                                                            <button 
-                                                                className="auth-button btn-action" onClick={handleScheduleDefense} 
-                                                                disabled={!defenseForm.date || !defenseForm.time || !defenseForm.room || isUploading}
-                                                                style={{ opacity: (!defenseForm.date || !defenseForm.time || !defenseForm.room || isUploading) ? 0.5 : 1 }}
-                                                            >
+                                                            <input type="date" className="auth-input" style={{ flex: 1, minWidth: '130px', marginBottom: 0 }} value={defenseForm.date} onChange={e => setDefenseForm({...defenseForm, date: e.target.value})} />
+                                                            <input type="time" className="auth-input" style={{ width: '100px', marginBottom: 0 }} value={defenseForm.time} onChange={e => setDefenseForm({...defenseForm, time: e.target.value})} />
+                                                            <input type="text" className="auth-input" placeholder="Room (e.g. Amphi A)" style={{ flex: 1, minWidth: '120px', marginBottom: 0 }} value={defenseForm.room} onChange={e => setDefenseForm({...defenseForm, room: e.target.value})} />
+                                                            <button className="auth-button btn-action" onClick={handleScheduleDefense} disabled={!defenseForm.date || !defenseForm.time || !defenseForm.room || isUploading} style={{ opacity: (!defenseForm.date || !defenseForm.time || !defenseForm.room || isUploading) ? 0.5 : 1 }}>
                                                                 Schedule
                                                             </button>
                                                         </div>
@@ -563,7 +626,6 @@ const Internships = () => {
 
                                     <div style={{ gridColumn: '1 / -1', background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '12px' }}>
                                         <h4 style={{ color: '#a855f7', marginBottom: '12px', marginTop: 0 }}>📄 Final Report & Evaluation</h4>
-                                        
                                         {details.report ? (
                                             <div style={{ marginBottom: '15px' }}>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px', flexWrap: 'wrap', gap: '10px' }}>
@@ -633,15 +695,7 @@ const Internships = () => {
                         </div>
                     </div>
                 )}
-
-                {deletedInternship && (
-                    <div style={{ position: 'fixed', bottom: '30px', left: '50%', transform: 'translateX(-50%)', background: '#1f2937', color: '#fff', padding: '12px 24px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '20px', zIndex: 9999, border: '1px solid rgba(255,255,255,0.1)', animation: 'slideUp 0.3s ease', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
-                        <span>Internship #<strong>{deletedInternship.id}</strong> deleted.</span>
-                        <button onClick={handleUndoDelete} style={{ background: 'transparent', border: 'none', color: '#3b82f6', fontWeight: 'bold', cursor: 'pointer', padding: 0 }}>UNDO</button>
-                    </div>
-                )}
             </div>
-            <style>{`@keyframes slideUp { from { bottom: -50px; opacity: 0; } to { bottom: 30px; opacity: 1; } }`}</style>
         </div>
     );
 };
