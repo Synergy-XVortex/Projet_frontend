@@ -14,7 +14,7 @@
 
 .page-container {
     width: 100%;
-    max-width: 96%; /* Use 95% to leave a small gap on the sides, or 100% for full edge-to-edge */
+    max-width: 96%;
     margin: 0 auto;
     padding: 40px 20px;
     box-sizing: border-box;
@@ -27,7 +27,7 @@
 .page-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start; /* Aligns the button with the top of the title */
+    align-items: flex-start;
     margin-bottom: 30px;
 }
 
@@ -40,7 +40,7 @@
     font-size: 28px;
     font-weight: 700;
     color: #ffffff;
-    margin: 0 0 5px 0; /* Unifies spacing below title */
+    margin: 0 0 5px 0;
 }
 
 .page-subtitle {
@@ -53,7 +53,7 @@
     display: flex;
     gap: 15px;
     align-items: flex-start;
-    margin-top: 2px; /* Slight adjustment for perfect horizontal alignment with text baseline */
+    margin-top: 2px;
 }
 
 /* =========================================
@@ -85,7 +85,7 @@
 }
 
 .navbar-brand span {
-    color: #3b82f6; /* Blue accent */
+    color: #3b82f6;
 }
 
 .navbar-links {
@@ -108,7 +108,7 @@
 }
 
 .nav-link.admin-link {
-    color: #ef4444; /* Red to distinguish admin actions */
+    color: #ef4444;
 }
 
 .user-info {
@@ -120,7 +120,6 @@
    4. CARDS & CONTAINERS
    ========================================= */
 
-/* Reusable Glassmorphism Card for dashboard widgets and tables */
 .glass-card {
     background: rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(10px);
@@ -180,7 +179,7 @@
 }
 
 .tab-button.active {
-    background: #3b82f6; /* Blue accent */
+    background: #3b82f6;
     color: #ffffff;
     box-shadow: 0 2px 10px rgba(59, 130, 246, 0.4);
 }
@@ -202,7 +201,6 @@
     border-color: #ffffff;
 }
 
-/* Hauteur unifiée pour tous les boutons d'action (Tables et Cards) */
 .btn-action {
     height: 42px;
     display: inline-flex;
@@ -246,7 +244,7 @@
     background: rgba(0, 0, 0, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: #ffffff;
-    padding: 10px 15px 10px 35px; /* Padding left for search icon */
+    padding: 10px 15px 10px 35px;
     border-radius: 8px;
     font-size: 14px;
     transition: all 0.3s ease;
@@ -348,7 +346,6 @@
     .mobile-menu-btn {
         display: block;
     }
-
     .navbar-menu {
         display: none;
         flex-direction: column;
@@ -364,19 +361,16 @@
         box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         margin-left: 0;
     }
-
     .navbar-menu.open {
         display: flex;
         gap: 20px;
     }
-
     .navbar-links {
         flex-direction: column;
         align-items: flex-start;
         width: 100%;
         gap: 15px;
     }
-
     .user-info-container {
         width: 100%;
         flex-direction: column;
@@ -386,7 +380,6 @@
         padding-top: 20px;
         border-top: 1px solid rgba(255, 255, 255, 0.1);
     }
-    
     .logout-button {
         width: 100%;
     }
@@ -422,4 +415,152 @@
 .fab-button:hover {
     transform: scale(1.1) rotate(45deg);
     box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
+}
+
+/* =========================================
+   10. ACCESSIBILITY (WCAG FOCUS)
+   ========================================= */
+/* Un liseré bleu clair apparaît uniquement lors de la navigation au clavier (Touche TAB) */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+.fab-button:focus-visible {
+    outline: 3px solid #60a5fa !important; /* Bleu clair */
+    outline-offset: 3px;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3);
+    border-radius: inherit; 
+}
+
+/* =========================================
+   11. NOTIFICATION CENTER
+   ========================================= */
+
+.notification-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-right: 15px; /* Espace avant le bouton de déconnexion */
+}
+
+.notification-bell {
+    background: transparent;
+    border: none;
+    color: #ffffff;
+    font-size: 20px;
+    cursor: pointer;
+    position: relative;
+    padding: 8px;
+    transition: transform 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.notification-bell:hover {
+    transform: scale(1.1);
+}
+
+.notification-badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background: #ef4444; /* Rouge alerte */
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 2px solid rgba(15, 15, 15, 0.9);
+}
+
+.notification-dropdown {
+    position: absolute;
+    top: 130%;
+    right: -10px; /* Aligné avec la cloche */
+    width: 320px;
+    background: rgba(20, 20, 20, 0.95);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+    z-index: 1000;
+    animation: fadeIn 0.2s ease;
+    overflow: hidden;
+}
+
+.notification-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+}
+
+.notification-mark-read {
+    background: none;
+    border: none;
+    color: #3b82f6;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 0;
+}
+
+.notification-mark-read:hover {
+    text-decoration: underline;
+}
+
+.notification-list {
+    max-height: 350px;
+    overflow-y: auto;
+}
+
+.notification-item {
+    padding: 15px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    transition: background 0.2s;
+    cursor: pointer;
+    text-align: left;
+}
+
+.notification-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.notification-item.unread {
+    background: rgba(59, 130, 246, 0.1);
+    border-left: 4px solid #3b82f6;
+}
+
+.notification-text {
+    margin: 0 0 5px 0;
+    font-size: 13px;
+    color: #fff;
+    line-height: 1.4;
+}
+
+.notification-time {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.5);
+    margin: 0;
+}
+
+.notification-empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 13px;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
