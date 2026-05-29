@@ -27,11 +27,20 @@ const Navbar = () => {
         } catch (error) { console.error("Invalid token"); }
     }
 
+    // Load initial notifications and listen to global sync events
     useEffect(() => {
-        if (userRole) {
-            setNotifications(NotificationService.getNotifications(userRole));
-        }
-    }, [userRole, location]); // Reloads when moving between pages to sync changes
+        const loadNotifications = () => {
+            if (userRole) {
+                setNotifications(NotificationService.getNotifications(userRole));
+            }
+        };
+
+        loadNotifications();
+
+        // Listen for changes made from the standalone notifications page
+        window.addEventListener('notifications-changed', loadNotifications);
+        return () => window.removeEventListener('notifications-changed', loadNotifications);
+    }, [userRole, location]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -54,6 +63,9 @@ const Navbar = () => {
         const updated = notifications.map(n => ({ ...n, unread: false }));
         setNotifications(updated);
         NotificationService.saveNotifications(userRole, updated);
+        
+        // Trigger a global custom event to synchronize the notifications page instantly
+        window.dispatchEvent(new Event('notifications-changed'));
     };
 
     const handleLogout = () => {

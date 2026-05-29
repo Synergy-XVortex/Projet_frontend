@@ -7,13 +7,26 @@ const Notifications = () => {
     const [notifications, setNotifications] = useState([]);
     const [userRole, setUserRole] = useState('');
 
+    const loadNotificationsFromService = (role) => {
+        if (role) {
+            setNotifications(NotificationService.getNotifications(role));
+        }
+    };
+
     useEffect(() => {
         const token = localStorage.getItem('jwt_token');
         if (token) {
             try {
                 const decoded = jwtDecode(token);
                 setUserRole(decoded.role);
-                setNotifications(NotificationService.getNotifications(decoded.role));
+                loadNotificationsFromService(decoded.role);
+
+                // Synchronize when state updates from the navbar dropdown menu
+                const handleSync = () => {
+                    loadNotificationsFromService(decoded.role);
+                };
+                window.addEventListener('notifications-changed', handleSync);
+                return () => window.removeEventListener('notifications-changed', handleSync);
             } catch (error) { console.error("Invalid token"); }
         }
     }, []);
@@ -22,18 +35,27 @@ const Notifications = () => {
         const updated = notifications.map(n => n.id === id ? { ...n, unread: !n.unread } : n);
         setNotifications(updated);
         NotificationService.saveNotifications(userRole, updated);
+        
+        // Notify the navbar component to recalculate the unread counter
+        window.dispatchEvent(new Event('notifications-changed'));
     };
 
     const handleDelete = (id) => {
         const updated = notifications.filter(n => n.id !== id);
         setNotifications(updated);
         NotificationService.saveNotifications(userRole, updated);
+        
+        // Notify the navbar component to update accordingly
+        window.dispatchEvent(new Event('notifications-changed'));
     };
 
     const handleMarkAllRead = () => {
         const updated = notifications.map(n => ({ ...n, unread: false }));
         setNotifications(updated);
         NotificationService.saveNotifications(userRole, updated);
+        
+        // Notify the navbar component to reset the unread counter
+        window.dispatchEvent(new Event('notifications-changed'));
     };
 
     return (
