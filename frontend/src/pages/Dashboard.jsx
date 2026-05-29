@@ -4,7 +4,7 @@ import { jwtDecode } from 'jwt-decode';
 import UserService from '../services/user.service';
 import CompanyService from '../services/company.service';
 import InternshipService from '../services/internship.service';
-import DefenseService from '../services/defense.service'; // <-- AJOUT DE L'IMPORT
+import DefenseService from '../services/defense.service';
 import '../styles/layout.css';
 
 const Dashboard = () => {
@@ -16,11 +16,12 @@ const Dashboard = () => {
         pendingActivations: 0,
         registeredCompanies: 0, 
         internshipsToValidate: 0,
+        teacherStudentsCount: 0, // <-- NOUVEAU POUR LE PROF
         studentStatus: 'Searching',
         studentCompanyName: 'None',
         hasInternship: false,
-        defenseDate: null,   // <-- NOUVEAU
-        defenseRoom: null    // <-- NOUVEAU
+        defenseDate: null,
+        defenseRoom: null
     });
     const [isStatsLoading, setIsStatsLoading] = useState(true);
 
@@ -54,8 +55,27 @@ const Dashboard = () => {
                     }));
                 }
             }
+            // --- NOUVELLE LOGIQUE PROFESSEUR ---
+            else if (role === 'TEACHER') {
+                const response = await InternshipService.getAllInternships();
+                const allInternships = response.data || [];
+                
+                // On filtre les stages assignés à ce prof
+                const myInternships = allInternships.filter(i => i.teacherEmail === email);
+                
+                // On compte combien sont en attente d'évaluation (COMPLETED)
+                const toValidateCount = myInternships.filter(i => i.status === 'COMPLETED').length;
+                
+                // On compte le nombre d'élèves uniques
+                const myStudentsCount = new Set(myInternships.map(i => i.studentEmail)).size;
+
+                setStats(prev => ({
+                    ...prev,
+                    internshipsToValidate: toValidateCount,
+                    teacherStudentsCount: myStudentsCount
+                }));
+            }
             else if (role === 'STUDENT') {
-                // 1. Fetch Internship
                 const response = await InternshipService.getAllInternships({ studentEmail: email });
                 let hasInternship = false;
                 let status = 'Searching';
@@ -72,7 +92,6 @@ const Dashboard = () => {
                     } catch (e) {}
                 }
 
-                // 2. Fetch Defenses
                 let dDate = null;
                 let dRoom = null;
                 try {
@@ -158,7 +177,6 @@ const Dashboard = () => {
                 </div>
             </div>
 
-            {/* --- NOUVEAU : ALERTE SOUTENANCE --- */}
             {stats.defenseDate && (
                 <div className="glass-card" style={{ marginTop: '20px', borderColor: '#a855f7', background: 'rgba(168, 85, 247, 0.1)', borderLeft: '4px solid #a855f7' }}>
                     <h3 style={{ color: '#d8b4fe', margin: '0 0 10px 0' }}>🗓️ Upcoming Defense Scheduled!</h3>
@@ -192,18 +210,40 @@ const Dashboard = () => {
     const renderTeacherDashboard = () => (
         <>
             <div className="stats-grid">
-                <div className="stats-card highlight">
+                <div className="stats-card highlight" style={{ borderColor: stats.internshipsToValidate > 0 ? '#f59e0b' : '#3b82f6' }}>
                     <span className="stats-icon">📋</span>
-                    <div><span className="stats-label">Internships to Validate</span><span className="stats-value">0</span></div>
+                    <div>
+                        <span className="stats-label">Reports to Grade</span>
+                        <span className="stats-value" style={{ color: stats.internshipsToValidate > 0 ? '#fcd34d' : '#fff' }}>
+                            {isStatsLoading ? "..." : stats.internshipsToValidate}
+                        </span>
+                    </div>
                 </div>
                 <div className="stats-card">
                     <span className="stats-icon">👨‍🎓</span>
-                    <div><span className="stats-label">My Students</span><span className="stats-value">0</span></div>
+                    <div>
+                        <span className="stats-label">My Students</span>
+                        <span className="stats-value">
+                            {isStatsLoading ? "..." : stats.teacherStudentsCount}
+                        </span>
+                    </div>
                 </div>
             </div>
+            
             <div className="glass-card" style={{ marginTop: '20px' }}>
-                <h3>Recent Activity</h3>
-                <p>No new internship agreements submitted today.</p>
+                {stats.internshipsToValidate > 0 ? (
+                    <>
+                        <h3 style={{ color: '#fcd34d' }}>Action Required</h3>
+                        <p>You have {stats.internshipsToValidate} internship report(s) waiting for your evaluation.</p>
+                        <button onClick={() => navigate('/internships')} className="auth-button btn-action" style={{ width: 'auto', marginTop: '15px' }}>Go to Internships</button>
+                    </>
+                ) : (
+                    <>
+                        <h3>You're all caught up!</h3>
+                        <p>No new internship reports need your evaluation at this moment.</p>
+                        <button onClick={() => navigate('/internships')} className="auth-button btn-action" style={{ width: 'auto', marginTop: '15px' }}>View My Students</button>
+                    </>
+                )}
             </div>
         </>
     );

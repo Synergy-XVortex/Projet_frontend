@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import UserService from '../services/user.service';
-import AuthService from '../services/auth.service'; // Import for creation
+import AuthService from '../services/auth.service';
 import '../styles/layout.css';
 
 const UserManagement = () => {
@@ -25,10 +25,19 @@ const UserManagement = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
 
+    // --- NOUVEAU : PAGINATION ---
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 15;
+
     const [deletedUser, setDeletedUser] = useState(null);
     const deleteTimeoutRef = useRef(null);
 
     useEffect(() => { fetchUsers(); }, []);
+
+    // Remettre la page à 1 quand on change d'onglet, de recherche ou de tri
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [activeTab, searchTerm, sortConfig]);
 
     const fetchUsers = async (showLoading = true) => {
         if (showLoading) setIsLoading(true);
@@ -73,6 +82,10 @@ const UserManagement = () => {
         return processableUsers;
     }, [users, activeTab, searchTerm, sortConfig]);
 
+    // --- LOGIQUE DE PAGINATION ---
+    const totalPages = Math.ceil(processedUsers.length / ITEMS_PER_PAGE);
+    const paginatedUsers = processedUsers.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
     const requestSort = (key) => {
         let direction = 'ascending';
         if (sortConfig.key === key && sortConfig.direction === 'ascending') direction = 'descending';
@@ -84,14 +97,11 @@ const UserManagement = () => {
         return sortConfig.direction === 'ascending' ? ' ↑' : ' ↓';
     };
 
-    // --- CLEANING UTILITY ---
     const sanitizeString = (str) => {
         if (!str) return '';
-        // Removes accents and unnecessary spaces
         return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
     };
 
-    // --- UPDATE ACTIONS ---
     const handleEditClick = (user) => {
         setEditingUser(user);
         setEditFormData({ 
@@ -107,7 +117,6 @@ const UserManagement = () => {
         e.preventDefault();
         if (!editingUser?.email) return;
 
-        // Validation & Cleaning
         const sanitizedData = {
             ...editingUser,
             firstName: sanitizeString(editFormData.firstName),
@@ -129,7 +138,6 @@ const UserManagement = () => {
         } catch (err) { alert("Error updating user."); }
     };
 
-    // --- CREATION ACTIONS ---
     const handleOpenCreateModal = () => {
         setCreateFormData({ email: '', firstName: '', lastName: '', role: 'STUDENT', major: '', password: '' });
         setIsCreateModalOpen(true);
@@ -138,7 +146,6 @@ const UserManagement = () => {
     const handleCreateUser = async (e) => {
         e.preventDefault();
 
-        // Validation & Cleaning
         const sanitizedData = {
             email: createFormData.email.trim().toLowerCase(),
             firstName: sanitizeString(createFormData.firstName),
@@ -166,7 +173,6 @@ const UserManagement = () => {
         }
     };
 
-    // --- DIRECT STATUS CHANGE ---
     const handleToggleStatus = async (user) => {
         const newStatus = !user.active;
         setUsers(users.map(u => u.email === user.email ? { ...u, active: newStatus } : u));
@@ -184,13 +190,8 @@ const UserManagement = () => {
         setDeletedUser(user);
         if (deleteTimeoutRef.current) clearTimeout(deleteTimeoutRef.current);
         deleteTimeoutRef.current = setTimeout(async () => {
-            try {
-                await UserService.deleteUser(user.email);
-            } catch (err) {
-                console.error(err);
-                alert("Error during deletion.");
-                fetchUsers(false); 
-            }
+            try { await UserService.deleteUser(user.email); } 
+            catch (err) { alert("Error during deletion."); fetchUsers(false); }
             setDeletedUser(null);
         }, 5000);
     };
@@ -215,11 +216,7 @@ const UserManagement = () => {
                         <p className="page-subtitle">Manage platform access, roles, and user accounts.</p>
                     </div>
                     <div className="page-header-actions">
-                        <button 
-                            onClick={handleOpenCreateModal} 
-                            className="auth-button btn-action" 
-                            style={{ gap: '8px' }}
-                        >
+                        <button onClick={handleOpenCreateModal} className="auth-button btn-action" style={{ gap: '8px' }}>
                             <span style={{ fontSize: '18px', fontWeight: 'bold' }}>+</span> Add User
                         </button>
                     </div>
@@ -233,9 +230,15 @@ const UserManagement = () => {
                 
                 <div className="controls-container">
                     <div className="tabs-container">
-                        {['ALL', 'STUDENT', 'TEACHER', 'GUEST', 'ADMINISTRATOR'].map(role => (
-                            <button key={role} className={`tab-button ${activeTab === role ? 'active' : ''}`} onClick={() => setActiveTab(role)}>{role}</button>
-                        ))}
+                        {/* NOUVEAU : Calcul dynamique des compteurs par onglet */}
+                        {['ALL', 'STUDENT', 'TEACHER', 'GUEST', 'ADMINISTRATOR'].map(role => {
+                            const count = role === 'ALL' ? users.length : users.filter(u => u.role === role).length;
+                            return (
+                                <button key={role} className={`tab-button ${activeTab === role ? 'active' : ''}`} onClick={() => setActiveTab(role)}>
+                                    {role} ({count})
+                                </button>
+                            );
+                        })}
                     </div>
                     <div className="search-container">
                         <span className="search-icon">🔍</span>
@@ -260,49 +263,61 @@ const UserManagement = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {processedUsers.map(user => (
+                                    {paginatedUsers.map(user => (
                                         <tr key={user.email} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background 0.2s' }}>
                                             <td style={{ padding: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', verticalAlign: 'middle' }}>{user.firstName || 'N/A'} {user.lastName || ''}</td>
                                             <td style={{ padding: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', verticalAlign: 'middle' }} title={user.email}>{user.email}</td>
                                             <td style={{ padding: '15px', fontSize: '13px', verticalAlign: 'middle' }}>{user.role}</td>
                                             <td style={{ padding: '15px', fontSize: '13px', verticalAlign: 'middle' }}>{user.major || 'N/A'}</td>
                                             <td style={{ padding: '15px', verticalAlign: 'middle', textAlign: 'center' }}>
-                                                {/* CLICKABLE STATUS */}
-                                                <span 
-                                                    onClick={() => handleToggleStatus(user)}
-                                                    style={{ 
-                                                        padding: '6px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold',
-                                                        color: user.active ? '#86efac' : '#fca5a5', 
-                                                        background: user.active ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                                                        border: `1px solid ${user.active ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
-                                                        cursor: 'pointer', transition: 'all 0.2s'
-                                                    }}
-                                                    title="Click to toggle status"
-                                                >
+                                                <span onClick={() => handleToggleStatus(user)} style={{ padding: '6px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', color: user.active ? '#86efac' : '#fca5a5', background: user.active ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)', border: `1px solid ${user.active ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`, cursor: 'pointer', transition: 'all 0.2s' }} title="Click to toggle status">
                                                     {user.active ? 'ACTIVE' : 'INACTIVE'}
                                                 </span>
                                             </td>
                                             <td style={{ padding: '15px', verticalAlign: 'middle' }}>
                                                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
                                                     <button onClick={() => handleEditClick(user)} className="logout-button btn-action" style={{ minWidth: '70px', padding: '0 10px' }}>Edit</button>
-                                                    <button 
-                                                        onClick={() => handleDeleteClick(user)} 
-                                                        className="logout-button btn-action" 
-                                                        style={{ minWidth: '70px', padding: '0 10px', borderColor: '#ef4444', color: '#ef4444' }}
-                                                    >
-                                                        Delete
-                                                    </button>
+                                                    <button onClick={() => handleDeleteClick(user)} className="logout-button btn-action" style={{ minWidth: '70px', padding: '0 10px', borderColor: '#ef4444', color: '#ef4444' }}>Delete</button>
                                                 </div>
                                             </td>
                                         </tr>
                                     ))}
+                                    {paginatedUsers.length === 0 && (
+                                        <tr><td colSpan="6" style={{ padding: '30px', textAlign: 'center', opacity: 0.6 }}>No users found for this criteria.</td></tr>
+                                    )}
                                 </tbody>
                             </table>
+
+                            {/* CONTROLES DE PAGINATION */}
+                            {totalPages > 1 && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', background: 'rgba(0,0,0,0.2)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <button 
+                                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} 
+                                        disabled={currentPage === 1}
+                                        className="logout-button btn-action"
+                                        style={{ opacity: currentPage === 1 ? 0.3 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer', height: '35px', padding: '0 15px' }}
+                                    >
+                                        &laquo; Previous
+                                    </button>
+                                    
+                                    <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', fontWeight: 'bold' }}>
+                                        Page {currentPage} of {totalPages}
+                                    </span>
+                                    
+                                    <button 
+                                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} 
+                                        disabled={currentPage === totalPages}
+                                        className="auth-button btn-action"
+                                        style={{ opacity: currentPage === totalPages ? 0.3 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', height: '35px', padding: '0 15px' }}
+                                    >
+                                        Next &raquo;
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
 
-                {/* CREATION MODAL */}
                 {isCreateModalOpen && (
                     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', zIndex: 9999 }}>
                         <div className="glass-card" style={{ width: '500px', maxWidth: '90%', animation: 'fadeIn 0.3s ease' }}>
@@ -350,7 +365,6 @@ const UserManagement = () => {
                     </div>
                 )}
 
-                {/* EDIT MODAL */}
                 {isEditModalOpen && editingUser && (
                     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', zIndex: 9999 }}>
                         <div className="glass-card" style={{ width: '500px', maxWidth: '90%', animation: 'fadeIn 0.3s ease' }}>
@@ -392,12 +406,7 @@ const UserManagement = () => {
                 )}
 
                 {deletedUser && (
-                    <div style={{
-                        position: 'fixed', bottom: '30px', left: '50%', transform: 'translateX(-50%)',
-                        background: '#1f2937', color: '#fff', padding: '12px 24px', borderRadius: '8px',
-                        display: 'flex', alignItems: 'center', gap: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-                        zIndex: 9999, border: '1px solid rgba(255,255,255,0.1)', animation: 'slideUp 0.3s ease'
-                    }}>
+                    <div style={{ position: 'fixed', bottom: '30px', left: '50%', transform: 'translateX(-50%)', background: '#1f2937', color: '#fff', padding: '12px 24px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '20px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)', zIndex: 9999, border: '1px solid rgba(255,255,255,0.1)', animation: 'slideUp 0.3s ease' }}>
                         <span>User <strong>{deletedUser.email}</strong> deleted.</span>
                         <button onClick={handleUndoDelete} style={{ background: 'transparent', border: 'none', color: '#3b82f6', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px', padding: 0 }}>UNDO</button>
                     </div>
