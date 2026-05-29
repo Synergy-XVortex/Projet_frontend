@@ -27,17 +27,21 @@ const Navbar = () => {
         } catch (error) { console.error("Invalid token"); }
     }
 
-    // Load initial notifications and listen to global sync events
+    // Fetch notifications asynchronously from the real database
     useEffect(() => {
-        const loadNotifications = () => {
+        const loadNotifications = async () => {
             if (userRole) {
-                setNotifications(NotificationService.getNotifications(userRole));
+                try {
+                    const res = await NotificationService.getNotifications();
+                    setNotifications(res.data || []);
+                } catch (error) {
+                    console.error("Failed to load notifications from database", error);
+                }
             }
         };
 
         loadNotifications();
 
-        // Listen for changes made from the standalone notifications page
         window.addEventListener('notifications-changed', loadNotifications);
         return () => window.removeEventListener('notifications-changed', loadNotifications);
     }, [userRole, location]);
@@ -57,15 +61,15 @@ const Navbar = () => {
         setIsNotificationOpen(false);
     }, [location]); 
 
-    const unreadCount = notifications.filter(n => n.unread).length;
+    const unreadCount = notifications.filter(n => !n.read).length;
 
-    const markAllAsRead = () => {
-        const updated = notifications.map(n => ({ ...n, unread: false }));
-        setNotifications(updated);
-        NotificationService.saveNotifications(userRole, updated);
-        
-        // Trigger a global custom event to synchronize the notifications page instantly
-        window.dispatchEvent(new Event('notifications-changed'));
+    const markAllAsRead = async () => {
+        try {
+            await NotificationService.markAllAsRead();
+            window.dispatchEvent(new Event('notifications-changed'));
+        } catch (error) {
+            console.error("Failed to mark all as read", error);
+        }
     };
 
     const handleLogout = () => {
@@ -147,9 +151,9 @@ const Navbar = () => {
                                     {notifications.length > 0 ? (
                                         <>
                                             {notifications.slice(0, 3).map(notif => (
-                                                <div key={notif.id} className={`notification-item ${notif.unread ? 'unread' : ''}`}>
-                                                    <p className="notification-text">{notif.text}</p>
-                                                    <p className="notification-time">{notif.time}</p>
+                                                <div key={notif.id} className={`notification-item ${!notif.read ? 'unread' : ''}`}>
+                                                    <p className="notification-text">{notif.message}</p>
+                                                    <p className="notification-time">{new Date(notif.createdAt).toLocaleDateString()}</p>
                                                 </div>
                                             ))}
                                             <div style={{ padding: '10px', borderTop: '1px solid rgba(255,255,255,0.1)', textAlign: 'center' }}>

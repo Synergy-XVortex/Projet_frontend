@@ -7,9 +7,12 @@ const Notifications = () => {
     const [notifications, setNotifications] = useState([]);
     const [userRole, setUserRole] = useState('');
 
-    const loadNotificationsFromService = (role) => {
-        if (role) {
-            setNotifications(NotificationService.getNotifications(role));
+    const loadNotificationsFromService = async () => {
+        try {
+            const res = await NotificationService.getNotifications();
+            setNotifications(res.data || []);
+        } catch (error) {
+            console.error("Failed to fetch notifications from DB", error);
         }
     };
 
@@ -19,43 +22,40 @@ const Notifications = () => {
             try {
                 const decoded = jwtDecode(token);
                 setUserRole(decoded.role);
-                loadNotificationsFromService(decoded.role);
+                loadNotificationsFromService();
 
-                // Synchronize when state updates from the navbar dropdown menu
-                const handleSync = () => {
-                    loadNotificationsFromService(decoded.role);
-                };
-                window.addEventListener('notifications-changed', handleSync);
-                return () => window.removeEventListener('notifications-changed', handleSync);
+                // Synchronize across components when custom event fires
+                window.addEventListener('notifications-changed', loadNotificationsFromService);
+                return () => window.removeEventListener('notifications-changed', loadNotificationsFromService);
             } catch (error) { console.error("Invalid token"); }
         }
     }, []);
 
-    const handleToggleRead = (id) => {
-        const updated = notifications.map(n => n.id === id ? { ...n, unread: !n.unread } : n);
-        setNotifications(updated);
-        NotificationService.saveNotifications(userRole, updated);
-        
-        // Notify the navbar component to recalculate the unread counter
-        window.dispatchEvent(new Event('notifications-changed'));
+    const handleToggleRead = async (id) => {
+        try {
+            await NotificationService.toggleRead(id);
+            window.dispatchEvent(new Event('notifications-changed'));
+        } catch (error) {
+            console.error("Failed to update notification read status", error);
+        }
     };
 
-    const handleDelete = (id) => {
-        const updated = notifications.filter(n => n.id !== id);
-        setNotifications(updated);
-        NotificationService.saveNotifications(userRole, updated);
-        
-        // Notify the navbar component to update accordingly
-        window.dispatchEvent(new Event('notifications-changed'));
+    const handleDelete = async (id) => {
+        try {
+            await NotificationService.deleteNotification(id);
+            window.dispatchEvent(new Event('notifications-changed'));
+        } catch (error) {
+            console.error("Failed to delete notification from DB", error);
+        }
     };
 
-    const handleMarkAllRead = () => {
-        const updated = notifications.map(n => ({ ...n, unread: false }));
-        setNotifications(updated);
-        NotificationService.saveNotifications(userRole, updated);
-        
-        // Notify the navbar component to reset the unread counter
-        window.dispatchEvent(new Event('notifications-changed'));
+    const handleMarkAllRead = async () => {
+        try {
+            await NotificationService.markAllAsRead();
+            window.dispatchEvent(new Event('notifications-changed'));
+        } catch (error) {
+            console.error("Failed to clean notifications", error);
+        }
     };
 
     return (
@@ -91,16 +91,16 @@ const Notifications = () => {
                                         alignItems: 'center',
                                         padding: '20px', 
                                         borderBottom: '1px solid rgba(255,255,255,0.05)',
-                                        background: notif.unread ? 'rgba(59, 130, 246, 0.05)' : 'transparent',
-                                        borderLeft: notif.unread ? '4px solid #3b82f6' : '4px solid transparent'
+                                        background: !notif.read ? 'rgba(59, 130, 246, 0.05)' : 'transparent',
+                                        borderLeft: !notif.read ? '4px solid #3b82f6' : '4px solid transparent'
                                     }}
                                 >
                                     <div style={{ textAlign: 'left', flex: 1, marginRight: '20px' }}>
-                                        <p style={{ margin: '0 0 5px 0', fontSize: '14px', color: '#fff', fontWeight: notif.unread ? '600' : '400' }}>
-                                            {notif.text}
+                                        <p style={{ margin: '0 0 5px 0', fontSize: '14px', color: '#fff', fontWeight: !notif.read ? '600' : '400' }}>
+                                            {notif.message}
                                         </p>
                                         <p style={{ margin: 0, fontSize: '11px', opacity: 0.5 }}>
-                                            {notif.time}
+                                            {new Date(notif.createdAt).toLocaleString()}
                                         </p>
                                     </div>
                                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -109,7 +109,7 @@ const Notifications = () => {
                                             className="logout-button btn-action"
                                             style={{ height: '32px', minWidth: '90px', fontSize: '12px', padding: '0 10px' }}
                                         >
-                                            {notif.unread ? 'Mark Read' : 'Mark Unread'}
+                                            {!notif.read ? 'Mark Read' : 'Mark Unread'}
                                         </button>
                                         <button 
                                             onClick={() => handleDelete(notif.id)}
