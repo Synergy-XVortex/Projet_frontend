@@ -811,8 +811,8 @@ body.light-theme .glass-card h3 + span {
     /* 2. Hidden Sidebar Menu (slides in from left) */
     .navbar-menu {
         position: fixed;
-        top: 70px; /* Height of the navbar */
-        left: -100%;
+        top: 70px; 
+        left: -120%; /* Push it further left to ensure it's fully hidden */
         width: 100%;
         height: calc(100vh - 70px);
         background: #1f2937;
@@ -820,6 +820,7 @@ body.light-theme .glass-card h3 + span {
         align-items: center !important;
         justify-content: flex-start !important;
         padding: 30px 20px !important;
+        box-sizing: border-box !important; /* Force padding inside the 100% width */
         transition: left 0.3s ease;
         overflow-y: auto;
         z-index: 1000;
