@@ -131,7 +131,9 @@ const Navbar = () => {
                 links.push({ path: '/companies', label: 'Companies' });
                 break;
             case 'GUEST':
-                links.push({ path: '/companies', label: 'Companies Directory' });
+                // --- NEW GUEST NAVIGATION ---
+                links.push({ path: '/internships', label: 'My Interns' });
+                links.push({ path: '/my-company', label: 'My Company' });
                 break;
             case 'ADMINISTRATOR':
                 links.push({ path: '/internships', label: 'Internships' });

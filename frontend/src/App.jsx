@@ -33,11 +33,32 @@ function App() {
                 <MainLayout />
             </ProtectedRoute>
         }>
+            {/* Common Routes for all authenticated users */}
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/companies" element={<Companies />} />
             <Route path="/internships" element={<Internships />} />
-            <Route path="/notifications" element={<Notifications />} /> {/* <-- NOUVELLE ROUTE */}
+            <Route path="/notifications" element={<Notifications />} />
 
+            {/* Global Companies Directory - Hidden from GUESTS */}
+            <Route 
+                path="/companies" 
+                element={
+                    <ProtectedRoute allowedRoles={['ADMINISTRATOR', 'TEACHER', 'STUDENT']}>
+                        <Companies />
+                    </ProtectedRoute>
+                } 
+            />
+
+            {/* Specific Company Profile - ONLY for GUESTS */}
+            <Route 
+                path="/my-company" 
+                element={
+                    <ProtectedRoute allowedRoles={['GUEST']}>
+                        <Companies />
+                    </ProtectedRoute>
+                } 
+            />
+
+            {/* Admin Only Route */}
             <Route 
                 path="/admin/users" 
                 element={
@@ -48,6 +69,7 @@ function App() {
             />
         </Route>
 
+        {/* Fallback route */}
         <Route path="*" element={<Navigate to="/dashboard" />} />
       </Routes>
     </Router>

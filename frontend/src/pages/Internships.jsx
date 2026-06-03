@@ -55,16 +55,39 @@ const Internships = () => {
     }
 
     useEffect(() => {
-        fetchInternships();
-        if (userRole !== 'STUDENT') fetchDropdownData();
+        const initData = async () => {
+            let guestSiret = null;
+            if (userRole === 'GUEST') {
+                try {
+                    const userRes = await UserService.getUserByEmail(userEmail);
+                    guestSiret = userRes.data.companySiret;
+                } catch(e) { console.error("Could not fetch guest user data"); }
+            }
+            
+            await fetchInternships(guestSiret);
+            
+            // Guests also need dropdown data to see student and teacher names properly
+            if (userRole !== 'STUDENT') {
+                await fetchDropdownData();
+            }
+        };
+
+        initData();
     }, []);
 
-    const fetchInternships = async () => {
+    const fetchInternships = async (guestSiret = null) => {
         setIsLoading(true);
         try {
             const params = userRole === 'STUDENT' ? { studentEmail: userEmail } : {};
             const response = await InternshipService.getAllInternships(params);
-            setInternships(response.data || []);
+            let data = response.data || [];
+
+            // Frontend filtering for GUEST since API doesn't support siret query param yet
+            if (userRole === 'GUEST' && guestSiret) {
+                data = data.filter(i => i.companySiret === guestSiret);
+            }
+
+            setInternships(data);
         } catch (err) { console.error("Failed to load internships", err); } 
         finally { setIsLoading(false); }
     };
@@ -441,7 +464,7 @@ const Internships = () => {
                                                         {companies.find(c => c.siret === internship.companySiret)?.corporateName || internship.companySiret}
                                                     </td>
                                                     <td style={{ padding: '15px', verticalAlign: 'middle' }}>
-                                                        {userRole === 'STUDENT' ? (
+                                                        {['STUDENT', 'GUEST'].includes(userRole) ? (
                                                             <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11px', color: badge.color, background: badge.bg, fontWeight: 'bold', border: `1px solid ${badge.border}` }}>
                                                                 {internship.status}
                                                             </span>
@@ -475,7 +498,6 @@ const Internships = () => {
                     )}
                 </div>
 
-                {/* --- LE FAMEUX FORMULAIRE D'AJOUT --- */}
                 {isFormModalOpen && (
                     <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', zIndex: 9999 }}>
                         <div className="glass-card" style={{ width: '600px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto', animation: 'fadeIn 0.3s ease' }}>

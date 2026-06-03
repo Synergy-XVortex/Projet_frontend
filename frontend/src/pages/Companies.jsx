@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import CompanyService from '../services/company.service';
+import UserService from '../services/user.service'; // <-- NOUVEL IMPORT
 import { jwtDecode } from 'jwt-decode';
 import '../styles/layout.css';
 
@@ -22,20 +23,42 @@ const Companies = () => {
 
     const token = localStorage.getItem('jwt_token');
     let userRole = '';
+    let userEmail = '';
     if (token) {
         try {
             const decoded = jwtDecode(token);
             userRole = decoded.role;
+            userEmail = decoded.sub; // <-- RÉCUPÉRATION DE L'EMAIL POUR LE GUEST
         } catch (error) { console.error("Invalid token"); }
     }
 
-    useEffect(() => { fetchCompanies(); }, []);
+    // --- INITIALISATION ASYNCHRONE ---
+    useEffect(() => {
+        const initData = async () => {
+            let guestSiret = null;
+            if (userRole === 'GUEST') {
+                try {
+                    const userRes = await UserService.getUserByEmail(userEmail);
+                    guestSiret = userRes.data.companySiret;
+                } catch(e) { console.error("Could not fetch guest user data"); }
+            }
+            fetchCompanies(guestSiret);
+        };
+        initData();
+    }, []);
 
-    const fetchCompanies = async () => {
+    const fetchCompanies = async (guestSiret = null) => {
         setIsLoading(true);
         try {
             const response = await CompanyService.getAllCompanies();
-            setCompanies(Array.isArray(response.data) ? response.data : []);
+            let data = Array.isArray(response.data) ? response.data : [];
+            
+            // --- FILTRE POUR LE GUEST ---
+            if (userRole === 'GUEST' && guestSiret) {
+                data = data.filter(c => c.siret === guestSiret);
+            }
+
+            setCompanies(data);
         } catch (error) { 
             console.error("Failed to load companies:", error);
             setCompanies([]); 
@@ -103,7 +126,14 @@ const Companies = () => {
             await CompanyService.updateCompany(siretToUpdate, formData);
             setEditingCompany(null);
             setIsEditModalOpen(false);
-            fetchCompanies();
+            
+            // Re-fetch with guest logic if needed
+            let guestSiret = null;
+            if (userRole === 'GUEST') {
+                const userRes = await UserService.getUserByEmail(userEmail);
+                guestSiret = userRes.data.companySiret;
+            }
+            fetchCompanies(guestSiret);
         } catch (err) { alert("Error updating the company."); }
     };
 
@@ -130,8 +160,13 @@ const Companies = () => {
             <div className="page-container">
                 <div className="page-header">
                     <div className="page-header-text">
-                        <h1 className="page-title">Companies Directory</h1>
-                        <p className="page-subtitle">Browse partner companies and find your next internship.</p>
+                        {/* Adapt the title dynamically based on the user role */}
+                        <h1 className="page-title">{userRole === 'GUEST' ? 'My Company' : 'Companies Directory'}</h1>
+                        <p className="page-subtitle">
+                            {userRole === 'GUEST' 
+                                ? 'View your company profile.' 
+                                : 'Browse partner companies and find your next internship.'}
+                        </p>
                     </div>
                     <div className="page-header-actions">
                         <div className="search-container">
@@ -145,7 +180,8 @@ const Companies = () => {
                                 style={{ height: '42px', boxSizing: 'border-box' }}
                             />
                         </div>
-                        {userRole !== 'STUDENT' && (
+                        {/* Only ADMINISTRATOR can create new companies */}
+                        {userRole === 'ADMINISTRATOR' && (
                             <button 
                                 onClick={handleOpenCreateModal} 
                                 className="auth-button btn-action" 
@@ -258,11 +294,12 @@ const Companies = () => {
                                         
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', color: 'rgba(255,255,255,0.7)', fontSize: '13px' }}>
                                             <span style={{ display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><span style={{ opacity: 0.7 }}>📍</span> {compAddress}</span>
-                                            <span style={{ display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><span style={{ opacity: 0.7 }}>✉️</span> {compEmail}</span>
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><span style={{ opacity: 0.7 }}>📧</span> {compEmail}</span>
                                             <span style={{ display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><span style={{ opacity: 0.7 }}>📞</span> {compPhone}</span>
                                         </div>
 
-                                        {userRole !== 'STUDENT' && (
+                                        {/* Only ADMINISTRATOR can edit or delete companies */}
+                                        {userRole === 'ADMINISTRATOR' && (
                                             <div className="btn-group" style={{ marginTop: 'auto', paddingTop: '15px' }}>
                                                 <button onClick={() => handleEditClick(company)} className="auth-button btn-action">
                                                     Edit

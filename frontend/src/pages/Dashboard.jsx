@@ -16,13 +16,18 @@ const Dashboard = () => {
         pendingActivations: 0,
         registeredCompanies: 0, 
         internshipsToValidate: 0,
-        teacherStudentsCount: 0, // <-- NOUVEAU POUR LE PROF
+        teacherStudentsCount: 0, 
         studentStatus: 'Searching',
         studentCompanyName: 'None',
         hasInternship: false,
         defenseDate: null,
-        defenseRoom: null
+        defenseRoom: null,
+        // --- NEW GUEST STATS ---
+        guestActiveInterns: 0,
+        guestTotalInterns: 0,
+        guestCompanyName: 'Loading...'
     });
+    
     const [isStatsLoading, setIsStatsLoading] = useState(true);
 
     useEffect(() => {
@@ -55,18 +60,11 @@ const Dashboard = () => {
                     }));
                 }
             }
-            // --- NOUVELLE LOGIQUE PROFESSEUR ---
             else if (role === 'TEACHER') {
                 const response = await InternshipService.getAllInternships();
                 const allInternships = response.data || [];
-                
-                // On filtre les stages assignés à ce prof
                 const myInternships = allInternships.filter(i => i.teacherEmail === email);
-                
-                // On compte combien sont en attente d'évaluation (COMPLETED)
                 const toValidateCount = myInternships.filter(i => i.status === 'COMPLETED').length;
-                
-                // On compte le nombre d'élèves uniques
                 const myStudentsCount = new Set(myInternships.map(i => i.studentEmail)).size;
 
                 setStats(prev => ({
@@ -112,8 +110,33 @@ const Dashboard = () => {
                     defenseRoom: dRoom
                 }));
             }
+            // --- NEW LOGIC FOR GUEST ROLE ---
+            else if (role === 'GUEST') {
+                const userRes = await UserService.getUserByEmail(email);
+                const guestSiret = userRes.data.companySiret;
+                
+                let companyName = "Unknown Company";
+                if (guestSiret) {
+                    try {
+                        const compRes = await CompanyService.getCompanyBySiret(guestSiret);
+                        companyName = compRes.data.corporateName;
+                    } catch (e) { console.warn("Could not fetch company details"); }
+                }
+
+                const response = await InternshipService.getAllInternships();
+                const allInternships = response.data || [];
+                const companyInterns = allInternships.filter(i => i.companySiret === guestSiret);
+                const activeInternsCount = companyInterns.filter(i => ['ONGOING', 'COMPLETED'].includes(i.status)).length;
+
+                setStats(prev => ({
+                    ...prev,
+                    guestActiveInterns: activeInternsCount,
+                    guestTotalInterns: companyInterns.length,
+                    guestCompanyName: companyName
+                }));
+            }
         } catch (error) {
-            console.error("Erreur Dashboard:", error);
+            console.error("Dashboard Error:", error);
         } finally {
             setIsStatsLoading(false);
         }
@@ -249,10 +272,31 @@ const Dashboard = () => {
     );
 
     const renderGuestDashboard = () => (
-        <div className="glass-card">
-            <h3>Welcome, Company Partner</h3>
-            <p>Here you will be able to review and validate the progress of the students you are supervising.</p>
-        </div>
+        <>
+            <div className="stats-grid">
+                <div className="stats-card highlight">
+                    <span className="stats-icon">🏢</span>
+                    <div>
+                        <span className="stats-label">My Company</span>
+                        <span className="stats-value" style={{ fontSize: '18px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '150px', display: 'inline-block' }}>
+                            {isStatsLoading ? "..." : stats.guestCompanyName}
+                        </span>
+                    </div>
+                </div>
+                <div className="stats-card" style={{ borderColor: '#10b981' }}>
+                    <span className="stats-icon">👨‍🎓</span>
+                    <div>
+                        <span className="stats-label">Active Interns</span>
+                        <span className="stats-value">{isStatsLoading ? "..." : stats.guestActiveInterns}</span>
+                    </div>
+                </div>
+            </div>
+            <div className="glass-card" style={{ marginTop: '20px' }}>
+                <h3 style={{ color: '#3b82f6' }}>Welcome, Company Partner</h3>
+                <p>Here you can review and monitor the progress of the students you are currently supervising.</p>
+                <button onClick={() => navigate('/internships')} className="auth-button btn-action" style={{ width: 'auto', marginTop: '15px' }}>View My Interns</button>
+            </div>
+        </>
     );
 
     return (
