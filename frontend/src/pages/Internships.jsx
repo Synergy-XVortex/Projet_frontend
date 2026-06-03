@@ -54,53 +54,36 @@ const Internships = () => {
         } catch (error) { console.error("Invalid token"); }
     }
 
+    // --- MODIFICATION : On charge les données pour tout le monde ---
     useEffect(() => {
-        const initData = async () => {
-            let guestSiret = null;
-            if (userRole === 'GUEST') {
-                try {
-                    const userRes = await UserService.getUserByEmail(userEmail);
-                    guestSiret = userRes.data.companySiret;
-                } catch(e) { console.error("Could not fetch guest user data"); }
-            }
-            
-            await fetchInternships(guestSiret);
-            
-            // Guests also need dropdown data to see student and teacher names properly
-            if (userRole !== 'STUDENT') {
-                await fetchDropdownData();
-            }
-        };
-
-        initData();
+        fetchInternships();
+        fetchDropdownData(); 
     }, []);
 
-    const fetchInternships = async (guestSiret = null) => {
+    const fetchInternships = async () => {
         setIsLoading(true);
         try {
             const params = userRole === 'STUDENT' ? { studentEmail: userEmail } : {};
             const response = await InternshipService.getAllInternships(params);
-            let data = response.data || [];
-
-            // Frontend filtering for GUEST since API doesn't support siret query param yet
-            if (userRole === 'GUEST' && guestSiret) {
-                data = data.filter(i => i.companySiret === guestSiret);
-            }
-
-            setInternships(data);
+            setInternships(response.data || []);
         } catch (err) { console.error("Failed to load internships", err); } 
         finally { setIsLoading(false); }
     };
 
+    // --- MODIFICATION : Séparation des requêtes selon les droits API ---
     const fetchDropdownData = async () => {
         try {
-            const [usersRes, compRes] = await Promise.all([
-                UserService.getAllUsers(), CompanyService.getAllCompanies()
-            ]);
-            const allUsers = usersRes.data || [];
-            setStudents(allUsers.filter(u => u.role === 'STUDENT'));
-            setTeachers(allUsers.filter(u => u.role === 'TEACHER' || u.role === 'ADMINISTRATOR'));
+            // Everyone needs the companies list for the form/table
+            const compRes = await CompanyService.getAllCompanies();
             setCompanies(compRes.data || []);
+
+            // Only Admin is allowed to fetch the full users list
+            if (userRole === 'ADMINISTRATOR') {
+                const usersRes = await UserService.getAllUsers();
+                const allUsers = usersRes.data || [];
+                setStudents(allUsers.filter(u => u.role === 'STUDENT'));
+                setTeachers(allUsers.filter(u => u.role === 'TEACHER' || u.role === 'ADMINISTRATOR'));
+            }
         } catch (error) { console.error("Error loading reference data", error); }
     };
 
@@ -405,7 +388,9 @@ const Internships = () => {
                             {userRole === 'STUDENT' ? 'Track your internship progress.' : 'Track, monitor, and validate student internship life cycles.'}
                         </p>
                     </div>
-                    {userRole === 'ADMINISTRATOR' && (
+
+                    {/* --- MODIFICATION : L'étudiant peut voir le bouton s'il n'a pas de stage --- */}
+                    {(userRole === 'ADMINISTRATOR' || (userRole === 'STUDENT' && !isLoading && processedInternships.length === 0)) && (
                         <div className="page-header-actions">
                             <button onClick={openCreateModal} className="auth-button btn-action" style={{ gap: '8px' }}>
                                 <span style={{ fontSize: '18px', fontWeight: 'bold' }}>+</span> Add Internship
@@ -464,7 +449,7 @@ const Internships = () => {
                                                         {companies.find(c => c.siret === internship.companySiret)?.corporateName || internship.companySiret}
                                                     </td>
                                                     <td style={{ padding: '15px', verticalAlign: 'middle' }}>
-                                                        {['STUDENT', 'GUEST'].includes(userRole) ? (
+                                                        {userRole === 'STUDENT' ? (
                                                             <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11px', color: badge.color, background: badge.bg, fontWeight: 'bold', border: `1px solid ${badge.border}` }}>
                                                                 {internship.status}
                                                             </span>
@@ -504,22 +489,26 @@ const Internships = () => {
                             <h3 style={{ marginBottom: '20px', marginTop: 0 }}>{formData.id ? 'Edit Internship' : 'Register New Internship'}</h3>
                             
                             <form onSubmit={handleSaveInternship} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                                <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-                                    <div className="auth-input-group" style={{ flex: 1, minWidth: '200px', marginBottom: 0 }}>
-                                        <label className="auth-label">Student</label>
-                                        <select className="auth-input" value={formData.studentEmail} onChange={e => setFormData({...formData, studentEmail: e.target.value})}>
-                                            <option value="">-- Select Student --</option>
-                                            {students.map(s => <option key={s.email} value={s.email}>{s.firstName} {s.lastName}</option>)}
-                                        </select>
+                                
+                                {/* --- MODIFICATION : Seul l'Admin voit les listes des élèves et des profs --- */}
+                                {userRole === 'ADMINISTRATOR' && (
+                                    <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                                        <div className="auth-input-group" style={{ flex: 1, minWidth: '200px', marginBottom: 0 }}>
+                                            <label className="auth-label">Student</label>
+                                            <select className="auth-input" value={formData.studentEmail} onChange={e => setFormData({...formData, studentEmail: e.target.value})}>
+                                                <option value="">-- Select Student --</option>
+                                                {students.map(s => <option key={s.email} value={s.email}>{s.firstName} {s.lastName}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="auth-input-group" style={{ flex: 1, minWidth: '200px', marginBottom: 0 }}>
+                                            <label className="auth-label">Supervising Teacher</label>
+                                            <select className="auth-input" value={formData.teacherEmail} onChange={e => setFormData({...formData, teacherEmail: e.target.value})}>
+                                                <option value="">-- Select Teacher --</option>
+                                                {teachers.map(t => <option key={t.email} value={t.email}>{t.firstName} {t.lastName}</option>)}
+                                            </select>
+                                        </div>
                                     </div>
-                                    <div className="auth-input-group" style={{ flex: 1, minWidth: '200px', marginBottom: 0 }}>
-                                        <label className="auth-label">Supervising Teacher</label>
-                                        <select className="auth-input" value={formData.teacherEmail} onChange={e => setFormData({...formData, teacherEmail: e.target.value})}>
-                                            <option value="">-- Select Teacher --</option>
-                                            {teachers.map(t => <option key={t.email} value={t.email}>{t.firstName} {t.lastName}</option>)}
-                                        </select>
-                                    </div>
-                                </div>
+                                )}
 
                                 <div className="auth-input-group" style={{ marginBottom: 0 }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>

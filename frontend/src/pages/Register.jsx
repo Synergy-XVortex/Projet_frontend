@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import AuthService from '../services/auth.service';
 import '../styles/auth.css';
@@ -18,11 +17,15 @@ const Register = () => {
     const [errorMessage, setErrorMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     
-    useEffect(() => {
-            document.body.classList.remove('light-theme');
-        }, []);
-
+    // --- NEW STATE FOR SUCCESS POPUP ---
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    
     const navigate = useNavigate();
+
+    // Ensure the login/register pages stay in dark theme
+    useEffect(() => {
+        document.body.classList.remove('light-theme');
+    }, []);
 
     const handleRegister = async (e) => {
         e.preventDefault();
@@ -41,8 +44,15 @@ const Register = () => {
 
         try {
             await AuthService.register(userData);
-            // Navigate to login page upon successful registration
-            navigate('/login');
+            
+            // Show the success popup
+            setShowSuccessModal(true);
+            
+            // Automatically redirect to login after 4 seconds
+            setTimeout(() => {
+                navigate('/login');
+            }, 4000);
+            
         } catch (error) {
             if (error.response && error.response.status === 409) {
                 setErrorMessage('This email is already in use.');
@@ -56,6 +66,23 @@ const Register = () => {
 
     return (
         <div className="auth-container">
+            {/* --- SUCCESS MODAL --- */}
+            {showSuccessModal && (
+                <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', zIndex: 9999 }}>
+                    <div className="auth-card" style={{ textAlign: 'center', animation: 'fadeIn 0.3s ease', borderLeft: '4px solid #10b981' }}>
+                        <div style={{ fontSize: '48px', marginBottom: '15px' }}>✅</div>
+                        <h2 style={{ color: '#10b981', margin: '0 0 15px 0' }}>Registration Successful!</h2>
+                        <p style={{ color: 'rgba(255,255,255,0.8)', lineHeight: '1.6', marginBottom: '20px' }}>
+                            Your account has been successfully created. However, it requires <strong>Administrator activation</strong> before you can log in.
+                        </p>
+                        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
+                            <div style={{ width: '30px', height: '30px', border: '3px solid rgba(255,255,255,0.1)', borderTop: '3px solid #3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                        </div>
+                        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', marginTop: '15px' }}>Redirecting to login page...</p>
+                    </div>
+                </div>
+            )}
+
             <div className="auth-card">
                 <h1 className="auth-title">Create Account</h1>
                 <p className="auth-subtitle">Join the Academic Platform today.</p>
@@ -63,8 +90,8 @@ const Register = () => {
                 {errorMessage && <div className="auth-error">{errorMessage}</div>}
                 
                 <form onSubmit={handleRegister}>
-                    <div style={{ display: 'flex', gap: '10px', marginBottom: '18px' }}>
-                        <div style={{ flex: 1, textAlign: 'left' }}>
+                    <div style={{ display: 'flex', gap: '10px', marginBottom: '18px', flexWrap: 'wrap' }}>
+                        <div style={{ flex: 1, minWidth: '120px', textAlign: 'left' }}>
                             <label className="auth-label">First Name</label>
                             <input 
                                 type="text" 
@@ -75,7 +102,7 @@ const Register = () => {
                                 required
                             />
                         </div>
-                        <div style={{ flex: 1, textAlign: 'left' }}>
+                        <div style={{ flex: 1, minWidth: '120px', textAlign: 'left' }}>
                             <label className="auth-label">Last Name</label>
                             <input 
                                 type="text" 
@@ -101,7 +128,7 @@ const Register = () => {
                     </div>
                     
                     <div className="auth-input-group">
-                        <label className="auth-label">Password</label>
+                        <label className="auth-label">Password (Min: 8 characters)</label>
                         <input 
                             type="password" 
                             className="auth-input"
@@ -112,8 +139,8 @@ const Register = () => {
                         />
                     </div>
 
-                    <div style={{ display: 'flex', gap: '10px', marginBottom: '18px' }}>
-                        <div style={{ flex: 1, textAlign: 'left' }}>
+                    <div style={{ display: 'flex', gap: '10px', marginBottom: '18px', flexWrap: 'wrap' }}>
+                        <div style={{ flex: 1, minWidth: '120px', textAlign: 'left' }}>
                             <label className="auth-label">Major</label>
                             <input 
                                 type="text" 
@@ -121,10 +148,9 @@ const Register = () => {
                                 placeholder="Software Eng. (Optional)"
                                 value={major}
                                 onChange={(e) => setMajor(e.target.value)}
-                                /* Removed the "required" attribute here */
                             />
                         </div>
-                        <div style={{ flex: 1, textAlign: 'left' }}>
+                        <div style={{ flex: 1, minWidth: '120px', textAlign: 'left' }}>
                             <label className="auth-label">Role</label>
                             <select 
                                 className="auth-input" 
@@ -140,7 +166,7 @@ const Register = () => {
                         </div>
                     </div>
                     
-                    <button type="submit" className="auth-button" disabled={isLoading}>
+                    <button type="submit" className="auth-button" disabled={isLoading || showSuccessModal}>
                         {isLoading ? 'Creating Account...' : 'Register'}
                     </button>
                 </form>
@@ -149,6 +175,11 @@ const Register = () => {
                     Already have an account? <Link to="/login" style={{ color: '#3b82f6', textDecoration: 'none', fontWeight: 'bold' }}>Sign In here</Link>
                 </p>
             </div>
+            
+            {/* Quick spinner animation specifically for this modal */}
+            <style>{`
+                @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+            `}</style>
         </div>
     );
 };
