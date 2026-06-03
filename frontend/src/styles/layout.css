@@ -564,3 +564,159 @@ textarea:focus-visible,
     from { opacity: 0; transform: translateY(-10px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* =========================================
+   12. THEME CLAIR (LIGHT MODE OVERRIDES)
+   ========================================= */
+body.light-theme .app-layout {
+    /* Fond plus clair, mais on garde l'image de fond */
+    background-image: linear-gradient(rgba(240, 242, 245, 0.85), rgba(240, 242, 245, 0.85)), url('http://googleusercontent.com/image_collection/image_retrieval/12074542400162400501');
+    color: #1f2937;
+}
+
+body.light-theme .page-title,
+body.light-theme .glass-card h3,
+body.light-theme .stats-value,
+body.light-theme .navbar-brand {
+    color: #111827;
+}
+
+body.light-theme .page-subtitle,
+body.light-theme .glass-card p,
+body.light-theme .stats-label,
+body.light-theme .user-info {
+    color: #4b5563;
+}
+
+/* On éclaircit les cartes et la barre de navigation */
+body.light-theme .glass-card,
+body.light-theme .navbar,
+body.light-theme .notification-dropdown,
+body.light-theme .mobile-overlay + .navbar-menu.open {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+}
+
+body.light-theme .nav-link { color: #4b5563; }
+body.light-theme .nav-link:hover,
+body.light-theme .nav-link.active { color: #3b82f6; }
+
+body.light-theme .tab-button { color: #4b5563; }
+body.light-theme .tab-button.active { color: #ffffff; }
+
+/* Champs de formulaires */
+body.light-theme .auth-input,
+body.light-theme .search-input {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid #d1d5db;
+    color: #1f2937;
+}
+
+/* Tableaux */
+body.light-theme th,
+body.light-theme td {
+    border-bottom-color: rgba(0, 0, 0, 0.05);
+}
+body.light-theme thead {
+    background: rgba(0, 0, 0, 0.05) !important;
+    color: #4b5563 !important;
+}
+
+/* Boutons secondaires */
+body.light-theme .logout-button {
+    color: #1f2937;
+    border-color: #d1d5db;
+}
+body.light-theme .logout-button:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+body.light-theme .notification-item.unread {
+    background: rgba(59, 130, 246, 0.1);
+}
+
+/* =========================================
+   13. THEME TOGGLE SWITCH (SLIDER)
+   ========================================= */
+
+.theme-switch-wrapper {
+    display: flex;
+    align-items: center;
+    margin-right: 15px;
+}
+
+.theme-switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 30px;
+}
+
+/* Hide default HTML checkbox */
+.theme-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+/* The slider track */
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 30px;
+    transition: .4s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 6px;
+    box-sizing: border-box;
+}
+
+/* The sliding knob */
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 22px;
+    width: 22px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    border-radius: 50%;
+    transition: .4s;
+    z-index: 2;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+
+/* Light theme state */
+.theme-switch input:checked + .slider {
+    background-color: #3b82f6; /* Blue accent for light mode */
+    border-color: #3b82f6;
+}
+
+/* Move the knob to the right */
+.theme-switch input:checked + .slider:before {
+    transform: translateX(30px);
+}
+
+/* Icons inside the slider */
+.slider-icon {
+    font-size: 13px;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+/* Accessibility focus for the custom slider */
+.theme-switch input:focus-visible + .slider {
+    outline: 3px solid #60a5fa !important;
+    outline-offset: 3px;
+}
