@@ -566,117 +566,128 @@ textarea:focus-visible,
 }
 
 /* =========================================
-   12. THEME CLAIR (LIGHT MODE OVERRIDES) - CORRECTIONS
+   12. THEME CLAIR (LIGHT MODE) - MASTER FIX
    ========================================= */
+
 body.light-theme .app-layout {
-    background-image: linear-gradient(rgba(243, 244, 246, 0.92), rgba(243, 244, 246, 0.92)), url('http://googleusercontent.com/image_collection/image_retrieval/12074542400162400501');
-    color: #374151; 
+    background-image: linear-gradient(rgba(243, 244, 246, 0.95), rgba(243, 244, 246, 0.95)), url('http://googleusercontent.com/image_collection/image_retrieval/12074542400162400501');
+    color: #374151 !important; 
 }
 
-body.light-theme .page-title,
-body.light-theme .glass-card h3,
-body.light-theme .stats-value,
-body.light-theme .navbar-brand {
-    color: #1f2937; 
+/* 1. ÉCRASER TOUS LES TEXTES BLANCS/GRIS CLAIRS MIS EN DUR PAR REACT */
+body.light-theme [style*="color: #fff"],
+body.light-theme [style*="color: rgb(255, 255, 255)"],
+body.light-theme [style*="color: rgba(255, 255, 255"],
+body.light-theme [style*="color: rgba(255,255,255"],
+body.light-theme [style*="color: white"],
+body.light-theme [style*="color: #e2e8f0"] { /* <-- Corrige le SIRET invisible */
+    color: #374151 !important;
 }
 
-body.light-theme .page-subtitle,
-body.light-theme .glass-card p,
-body.light-theme .stats-label,
+/* 2. ÉCRASER TOUTES LES BORDURES BLANCHES MISES EN DUR */
+body.light-theme [style*="border: 1px solid rgba(255, 255, 255"],
+body.light-theme [style*="border: 1px solid rgba(255,255,255"],
+body.light-theme [style*="border-bottom: 1px solid rgba(255"],
+body.light-theme [style*="border-top: 1px solid rgba(255"] {
+    border-color: rgba(0, 0, 0, 0.15) !important;
+}
+
+/* 3. ÉCRASER LES FONDS BLANCS TRANSPARENTS (Ex: Badge SIRET, Cartes internes) */
+body.light-theme [style*="background: rgba(255, 255, 255, 0."],
+body.light-theme [style*="background: rgba(255,255,255,0."] {
+    background: rgba(0, 0, 0, 0.05) !important;
+}
+
+/* 4. PROTÉGER LES ÉLÉMENTS QUI DOIVENT ABSOLUMENT RESTER BLANCS */
+body.light-theme .notification-badge,
+body.light-theme .tab-button.active,
+body.light-theme .fab-button,
+body.light-theme .auth-button,
+body.light-theme [style*="background: linear-gradient"] { /* Le logo rond de l'entreprise */
+    color: #ffffff !important;
+}
+
+/* 5. TITRES ET TEXTES NORMAUX */
+body.light-theme h1, body.light-theme h2, body.light-theme h3, 
+body.light-theme h4, body.light-theme h5, body.light-theme .page-title, 
+body.light-theme .stats-value, body.light-theme .navbar-brand {
+    color: #111827 !important; 
+}
+body.light-theme .page-subtitle, body.light-theme .stats-label, 
 body.light-theme .user-info {
-    color: #6b7280; 
+    color: #6b7280 !important; 
 }
 
-/* ---> CORRECTION DES TEXTES INVISIBLES <--- */
+/* 6. CARTES, NAVBAR ET MODALES GLOBALES */
+body.light-theme .glass-card,
+body.light-theme .navbar,
+body.light-theme .notification-dropdown,
+body.light-theme .mobile-overlay + .navbar-menu.open {
+    background: rgba(255, 255, 255, 0.95) !important; 
+    border: 1px solid rgba(0, 0, 0, 0.1) !important; 
+    box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.05) !important; 
+}
 
-/* 1. Notifications et champs spécifiques */
-body.light-theme .notification-text,
-body.light-theme .notification-empty {
+/* 7. NAVIGATION ET ONGLETS */
+body.light-theme .nav-link { color: #6b7280 !important; }
+body.light-theme .nav-link:hover, body.light-theme .nav-link.active { color: #3b82f6 !important; }
+body.light-theme .tab-button { color: #6b7280 !important; }
+body.light-theme .tab-button.active { 
+    background: #3b82f6 !important; 
+    border-color: #3b82f6 !important; 
+}
+
+/* 8. FORMULAIRES (INPUTS & SELECTS) */
+body.light-theme .auth-input, body.light-theme .search-input {
+    background: rgba(255, 255, 255, 0.9) !important;
+    border: 1px solid rgba(0, 0, 0, 0.2) !important;
     color: #1f2937 !important;
 }
-body.light-theme .notification-time {
-    color: #6b7280 !important;
+body.light-theme .auth-input:focus, body.light-theme .search-input:focus {
+    background: #ffffff !important;
+    border-color: #3b82f6 !important;
 }
 body.light-theme select option {
     background: #ffffff !important;
     color: #1f2937 !important;
 }
 
-/* 2. Écrase les styles React "en dur" (inline styles) forcés en blanc */
-body.light-theme [style*="color: #fff"],
-body.light-theme [style*="color: rgb(255, 255, 255)"],
-body.light-theme [style*="color: rgba(255, 255, 255"],
-body.light-theme [style*="color: white"] {
-    color: #374151 !important;
-}
-
-/* 3. On protège nos boutons et badges qui DOIVENT rester blancs */
-body.light-theme .notification-badge,
-body.light-theme .tab-button.active,
-body.light-theme .fab-button,
-body.light-theme .auth-button {
-    color: #ffffff !important;
-}
-/* ------------------------------------------ */
-
-/* Cartes et NavBar */
-body.light-theme .glass-card,
-body.light-theme .navbar,
-body.light-theme .notification-dropdown,
-body.light-theme .mobile-overlay + .navbar-menu.open {
-    background: rgba(255, 255, 255, 0.75) !important; 
-    border: 1px solid rgba(255, 255, 255, 0.6) !important; 
-    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05) !important; 
-}
-
-body.light-theme .nav-link { color: #6b7280 !important; }
-body.light-theme .nav-link:hover,
-body.light-theme .nav-link.active { color: #3b82f6 !important; }
-
-body.light-theme .tab-button { color: #6b7280 !important; }
-body.light-theme .tab-button.active { 
-    background: #3b82f6 !important; 
-    border-color: #3b82f6 !important; 
-    box-shadow: 0 2px 10px rgba(59, 130, 246, 0.3) !important;
-}
-
-/* Formulaires */
-body.light-theme .auth-input,
-body.light-theme .search-input {
-    background: rgba(255, 255, 255, 0.6) !important;
-    border: 1px solid rgba(209, 213, 219, 0.8) !important;
-    color: #374151 !important;
-}
-body.light-theme .auth-input:focus,
-body.light-theme .search-input:focus {
-    background: rgba(255, 255, 255, 0.95) !important;
-    border-color: #3b82f6 !important;
-}
-
-/* Tableaux */
-body.light-theme th,
-body.light-theme td {
-    border-bottom-color: rgba(0, 0, 0, 0.04) !important;
-}
-body.light-theme thead {
-    background: rgba(243, 244, 246, 0.8) !important;
-    color: #1f2937 !important;
-}
-
-/* Boutons secondaires (Sign out, actions rapides) */
+/* 9. BOUTONS SECONDAIRES (Ex: Delete, Sign Out, Details) */
 body.light-theme .logout-button {
     color: #4b5563 !important;
-    background: rgba(255, 255, 255, 0.5) !important;
-    border-color: rgba(209, 213, 219, 0.8) !important;
+    background: rgba(0, 0, 0, 0.04) !important;
+    border: 1px solid rgba(0, 0, 0, 0.15) !important;
 }
 body.light-theme .logout-button:hover {
-    background: rgba(255, 255, 255, 0.95) !important;
+    background: rgba(0, 0, 0, 0.1) !important;
     color: #1f2937 !important;
-    border-color: #9ca3af !important;
+    border-color: rgba(0, 0, 0, 0.3) !important;
 }
 
-body.light-theme .notification-item.unread {
-    background: rgba(59, 130, 246, 0.05) !important;
+/* Bouton spécifique rouge ("Delete") */
+body.light-theme .logout-button[style*="color: #ef4444"],
+body.light-theme .logout-button[style*="color: rgb(239, 68, 68)"] {
+    color: #ef4444 !important;
+    border-color: rgba(239, 68, 68, 0.4) !important;
+    background: rgba(239, 68, 68, 0.05) !important;
+}
+body.light-theme .logout-button[style*="color: #ef4444"]:hover {
+    background: rgba(239, 68, 68, 0.1) !important;
+    border-color: #ef4444 !important;
+}
+
+/* 10. TABLEAUX ET NOTIFICATIONS */
+body.light-theme th, body.light-theme td { border-bottom-color: rgba(0, 0, 0, 0.08) !important; }
+body.light-theme thead { background: rgba(0, 0, 0, 0.05) !important; color: #1f2937 !important; }
+body.light-theme .notification-item { border-bottom-color: rgba(0, 0, 0, 0.05) !important; }
+body.light-theme .notification-item.unread { background: rgba(59, 130, 246, 0.08) !important; }
+
+/* FORCER LE BADGE SIRET EN NOIR DANS L'ANNUAIRE DES ENTREPRISES */
+body.light-theme .glass-card h3 + span {
+    color: #000000 !important; /* Texte en noir pur */
+    background: rgba(0, 0, 0, 0.08) !important; /* Fond gris clair pour le badge */
+    border: 1px solid rgba(0, 0, 0, 0.2) !important; /* Bordure grise foncée */
+    font-weight: bold !important;
 }
 
 /* =========================================

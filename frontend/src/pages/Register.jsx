@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import AuthService from '../services/auth.service';
 import '../styles/auth.css';
@@ -17,6 +18,10 @@ const Register = () => {
     const [errorMessage, setErrorMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     
+    useEffect(() => {
+            document.body.classList.remove('light-theme');
+        }, []);
+
     const navigate = useNavigate();
 
     const handleRegister = async (e) => {
